@@ -1,0 +1,14 @@
+cc_binary {
+    name: "vpick",
+    srcs: ["vpick.cpp"],
+    shared_libs: [
+        "liblog",
+        "libcrypto",
+    ],
+    static_libs: ["libbase"],
+    cflags: [
+        "-Wno-error",
+        "-Wno-unused-parameter",
+    ],
+    //init_rc: ["vpick.rc"],
+}
