@@ -19,10 +19,12 @@
 #include <map>
 #include <random>
 
-#define WORK_DIR "/data/local/tmp/gif/"
-#define VERSION "1.0.0"
+#define WORK_DIR "/data/local/tmp/vpk/"
+
 
 using namespace std;
+const string VERSION = "1.0.0";
+const string encrypted = "N";
 bool dbg = false;
 bool keepcache = false;
 
@@ -123,13 +125,14 @@ void print_help() {
 string extract_system_properties_and_save() {
     // Step 2: Get system properties and remove spaces
     string manufacturer = remove_spaces(execute_command("getprop ro.product.manufacturer"));
+    string brand = remove_spaces(execute_command("getprop ro.product.brand"));
     string model = remove_spaces(execute_command("getprop ro.product.model"));
     string fingerprint = remove_spaces(execute_command("getprop ro.build.fingerprint"));
     string version = remove_spaces(execute_command("getprop ro.build.version.release"));
     string build_id = remove_spaces(execute_command("getprop ro.build.id"));
 
     // Step 3: Create the working directory name with "=" separator
-    string work_dir_name = manufacturer + "=" + model + "=" + version + "=" + build_id + "=" + md5sum(fingerprint);
+    string work_dir_name = manufacturer + "=" + brand + "=" + model + "=" + version + "=" + build_id + "=" +  encrypted + "=" + md5sum(fingerprint);
 
     // Step 4: Create the working directory under /sdcard/gif/
     string full_work_dir_path = string(WORK_DIR) + work_dir_name;
@@ -319,6 +322,9 @@ int delete_directory(const std::string& path) {
     return 0;
 }
 
+void backup_version(const std::string& path) {
+    execute_command("echo " + VERSION + " > " + path + "/version");
+}
 
 void backup_main() {
     // Create the base directory
@@ -380,12 +386,12 @@ void list_main() {
     }
 
     // 更新的正则表达式，匹配格式：品牌=设备名称=版本号=构建ID.tar.gz
-    regex device_regex(R"(([^=]+)=([^=]+)=([^=]+)=([^=]+)=([^=]+)\.tar\.gz)");
+    regex device_regex(R"(([^=]+)=([^=]+)=([^=]+)=([^=]+)=([^=]+)=([^=]+)=([^=]+)\.tar\.gz)");
     smatch match;
 
     // 输出标题
     cout << "-----------------------------------------------------" << endl;
-    cout << "No.  | Manufacturer    | Device Name     | Version | Build ID" << endl;
+    cout << "No.  | Manufacturer    | brand           | model           | Version | Build ID           | flag" << endl;
     cout << "-----------------------------------------------------" << endl;
 
     // 打印每个备份文件的信息
@@ -394,12 +400,14 @@ void list_main() {
 
         if (regex_search(file_name, match, device_regex)) {
             string manufacturer = match[1];  // 厂商
-            string device_name = match[2];   // 设备名称
-            string version = match[3];       // 版本
-            string build_id = match[4];      // 构建 ID
+            string brand = match[2];         // 品牌
+            string model = match[3];         // 型号
+            string version = match[4];       // 版本
+            string build_id = match[5];      // 构建 ID
+            string enc = match[6];           // enc
 
             // 输出信息，左对齐
-            printf("%-4zu | %-15s | %-15s | %-7s | %-8s\n", i + 1, manufacturer.c_str(), device_name.c_str(), version.c_str(), build_id.c_str());
+            printf("%-4zu | %-15s | %-15s | %-15s | %-7s | %-18s | %-4s\n", i + 1, manufacturer.c_str(), brand.c_str(), model.c_str(), version.c_str(), build_id.c_str(), enc.c_str());
         } else {
             cerr << "Failed to parse backup file name: " << file_name << endl;
         }
@@ -1193,7 +1201,7 @@ bool select_backup_and_restore(int index) {
     if (dbg) cout << "Selected backup: " << selected_backup << endl;
 
     // Prepare destination directory
-    string destination_dir = "/data/local/tmp/.gif/";
+    string destination_dir = "/data/local/tmp/.vpk/";
 
     // Check if the destination directory exists, and create it if not
     struct stat st = {0};
