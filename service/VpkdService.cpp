@@ -12,7 +12,7 @@
 
 using namespace android;
 
-namespace rc {
+namespace vpk {
 
 binder::Status VpkdService::hello(int32_t* _aidl_return) {
     hello(0);
@@ -69,10 +69,16 @@ status_t VpkdService::shellCommand(int in, int out, int err, std::vector<std::st
         return hello(out);
     }
 
-
     if (args[0] == "help") {
         printUsage(out);
         return NO_ERROR;
+    }
+
+    if (args[0] == "branch-changed") {
+        return onBrandChanged(out);
+    }
+    if (args[0] == "model-changed") {
+        return onModelChanged(out);
     }
 
     printUsage(err);
@@ -90,4 +96,12 @@ status_t VpkdService::printUsage(int out) {
                    "  hello: test cmd\n"
                    "  help print this message\n", getServiceName());
 }
+
+status_t VpkdService::onBrandChanged(int out) {
+    return dprintf(out, "TODO: onBrandChanged\n");
+}
+status_t VpkdService::onModelChanged(int out) {
+    return dprintf(out, "TODO: onModelChanged\n");
+}
+
 }

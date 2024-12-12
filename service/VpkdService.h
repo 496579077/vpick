@@ -6,7 +6,7 @@
 #include "utils/Vector.h"
 #include "com/android/vpkd/BnVPKD.h"
 
-namespace rc {
+namespace vpk {
 
 using namespace com::android;
 
@@ -18,9 +18,12 @@ public:
     android::status_t dump(int fd, const android::Vector<android::String16>& args) override;
     android::status_t shellCommand(int in, int out, int err, std::vector<std::string>& args);
     android::binder::Status hello(int32_t* _aidl_return) override;
+    
 private:
     android::status_t hello(int out);
     android::status_t printUsage(int out);
+    android::status_t onBrandChanged(int out);
+    android::status_t onModelChanged(int out);
 };
 }
 #endif

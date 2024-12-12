@@ -6,3 +6,10 @@ service vpkd /system/bin/vpkd -daemon
 
 on property:sys.boot_completed=1
     start vpkd
+
+
+on property:ro.product.brand=*
+    exec cmd vpkd branch-changed
+
+on property:ro.product.model=*
+    exec cmd vpkd model-changed
