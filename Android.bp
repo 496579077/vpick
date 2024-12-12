@@ -12,3 +12,54 @@ cc_binary {
     ],
     //init_rc: ["vpick.rc"],
 }
+
+cc_library_static {
+    name: "libvpkd_binder",
+    srcs: [
+        ":vpkd_aidl",
+    ],
+    shared_libs: [
+        "libbinder",
+        "libutils",
+    ],
+    aidl: {
+        local_include_dirs: ["aidl"],
+        include_dirs: ["frameworks/native/aidl/binder"],
+        export_aidl_headers: true,
+    },
+    vndk: {
+        enabled: false,
+    },
+}
+
+filegroup {
+    name: "vpkd_aidl",
+    srcs: [
+        "aidl/com/android/vpkd/IVPKD.aidl",
+    ],
+}
+
+cc_binary {
+    name: "vpkd",
+    include_dirs: ["."],
+    init_rc:["vpkd.rc",],
+    static_libs: [
+        "libvpkd_binder",
+    ],
+    shared_libs: [
+        "libcutils",
+        "libutils",
+        "liblog",
+        "libbinder",
+        "libevent",
+        "libjsoncpp",
+    ],
+    srcs: [
+        "main_vpkd.cpp",
+        "service/VpkdService.cpp",
+    ],
+    cflags: [
+        "-Wno-error",
+        "-Wno-unused-parameter",
+    ],
+}
