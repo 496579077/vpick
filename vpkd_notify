@@ -1,0 +1,4 @@
+#!/bin/sh
+umask 000
+
+/system/bin/cmd vpkd $1

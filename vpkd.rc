@@ -9,7 +9,7 @@ on property:sys.boot_completed=1
 
 
 on property:ro.product.brand=*
-    exec cmd vpkd branch-changed
+    exec cmd vpkd brand-changed
 
 on property:ro.product.model=*
     exec cmd vpkd model-changed

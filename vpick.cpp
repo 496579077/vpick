@@ -19,10 +19,12 @@
 #include <map>
 #include <random>
 
+
+
 #define WORK_DIR "/data/local/tmp/vpk/"
 
-
 using namespace std;
+
 const string VERSION = "1.0.0";
 const string encrypted = "N";
 bool dbg = false;
@@ -31,8 +33,8 @@ bool keepcache = false;
 
 struct DeviceInfo {
     string manufacturer;
-    string model;
     string brand;
+    string model;
     string imei1;
     string imei2;
 };
@@ -43,6 +45,24 @@ DeviceInfo gDeviceInfo = {
     .brand = "",
     .imei1 = "",
     .imei2 = "",
+};
+
+struct TargetDeviceInfo {
+    bool withIndex;
+    int index;
+    bool withBrand;
+    string brand;
+    bool withModel;
+    string model;
+};
+
+TargetDeviceInfo gTargetDeviceInfo = {
+    .withIndex = false,
+    .index = -1,
+    .withBrand = false,
+    .brand = "",
+    .withModel = false,
+    .model = "",
 };
 
 // Helper function to remove spaces from a string
@@ -116,9 +136,15 @@ bool create_directory(const string &dir_path) {
 
 void print_help() {
     cout << "Usage: vpick [options]" << endl;
-    cout << "  -v|version     Print version" << endl;
-    cout << "  -b|backup      Execute information extraction logic" << endl;
-    cout << "  -h|help        Display this help message" << endl;
+    cout << "Options:" << endl;
+    cout << "  --index <index>      Specify the target device index" << endl;
+    cout << "  --brand <brand>      Specify the target device brand" << endl;
+    cout << "  --model <model>      Specify the target device model" << endl;
+    cout << "  -v, --version        Show version information" << endl;
+    cout << "  -b, backup           Create a backup" << endl;
+    cout << "  -r, restore          Restore from a backup" << endl;
+    cout << "  -l, list             List available backups" << endl;
+    cout << "  -h, help             Show this help message" << endl;
 }
 
 // Function to extract system properties and save them
@@ -385,14 +411,14 @@ void list_main() {
         return;
     }
 
-    // 更新的正则表达式，匹配格式：品牌=设备名称=版本号=构建ID.tar.gz
+    // 匹配格式：厂商=品牌=型号=版本=构建ID=是否加密.tar.gz
     regex device_regex(R"(([^=]+)=([^=]+)=([^=]+)=([^=]+)=([^=]+)=([^=]+)=([^=]+)\.tar\.gz)");
     smatch match;
 
     // 输出标题
-    cout << "-----------------------------------------------------" << endl;
-    cout << "No.  | Manufacturer    | brand           | model           | Version | Build ID           | flag" << endl;
-    cout << "-----------------------------------------------------" << endl;
+    cout << "-------------------------------------------------------------------------------------------------" << endl;
+    cout << "index | manufacturer    | brand           | model           | Version | Build ID           | flag" << endl;
+    cout << "-------------------------------------------------------------------------------------------------" << endl;
 
     // 打印每个备份文件的信息
     for (size_t i = 0; i < backup_files.size(); ++i) {
@@ -407,12 +433,12 @@ void list_main() {
             string enc = match[6];           // enc
 
             // 输出信息，左对齐
-            printf("%-4zu | %-15s | %-15s | %-15s | %-7s | %-18s | %-4s\n", i + 1, manufacturer.c_str(), brand.c_str(), model.c_str(), version.c_str(), build_id.c_str(), enc.c_str());
+            printf("%-5zu | %-15s | %-15s | %-15s | %-7s | %-18s | %-4s\n", i + 1, manufacturer.c_str(), brand.c_str(), model.c_str(), version.c_str(), build_id.c_str(), enc.c_str());
         } else {
             cerr << "Failed to parse backup file name: " << file_name << endl;
         }
     }
-    cout << "-----------------------------------------------------" << endl;
+    cout << "-------------------------------------------------------------------------------------------------" << endl;
 }
 
 
@@ -1167,6 +1193,7 @@ bool generate_misc_info() {
     return true;
 }
 
+
 bool select_backup_and_restore(int index) {
     DIR *dir = opendir(WORK_DIR);
     if (dir == nullptr) {
@@ -1238,24 +1265,130 @@ bool select_backup_and_restore(int index) {
     return true;
 }
 
-void restore_main(int argc, char* argv[]) {
-    if (argc < 3) {
-        cerr << "Please provide a backup index to restore" << endl;
+bool select_backup_and_restore(const string &brand, const string &model) {
+    DIR *dir = opendir(WORK_DIR);
+    if (dir == nullptr) {
+        cerr << "Failed to open directory: " << WORK_DIR << endl;
+        return false;
+    }
+
+    vector<string> backup_files;
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        string file_name = entry->d_name;
+        if (file_name.find(".tar.gz") != string::npos) {
+            backup_files.push_back(file_name);
+        }
+    }
+    closedir(dir);
+
+    if (backup_files.empty()) {
+        cerr << "No backup files found in " << WORK_DIR << endl;
+        return false;
+    }
+
+    // 匹配格式：厂商=品牌=型号=版本=构建ID=是否加密.tar.gz
+    regex device_regex(R"(([^=]+)=([^=]+)=([^=]+)=([^=]+)=([^=]+)=([^=]+)=([^=]+)\.tar\.gz)");
+    smatch match;
+    vector<string> matching_files;
+    for (size_t i = 0; i < backup_files.size(); ++i) {
+        string file_name = backup_files[i];
+
+        if (regex_search(file_name, match, device_regex)) {
+            string t_manufacturer = match[1];  // 厂商
+            string t_brand = match[2];         // 品牌
+            string t_model = match[3];         // 型号
+            string t_version = match[4];       // 版本
+            string t_build_id = match[5];      // 构建 ID
+            string t_enc = match[6];           // enc
+
+            if (t_brand == brand && t_model == model)  {
+                matching_files.push_back(file_name);
+            }
+        } else {
+            cerr << "Failed to parse backup file name: " << file_name << endl;
+        }
+    }
+
+    if (matching_files.empty()) {
+        cerr << "No matching backup files found for brand: " << brand << ", model: " << model << endl;
+        return false;
+    }
+
+    // Randomly select one if multiple matches exist
+    string selected_backup;
+    if (matching_files.size() == 1) {
+        selected_backup = matching_files[0];
+    } else {
+        srand(time(nullptr));
+        int random_index = rand() % matching_files.size();
+        selected_backup = matching_files[random_index];
+        if (dbg) cout << "Multiple backups found. Randomly selected: " << selected_backup << endl;
+    }
+
+    if (dbg) cout << "Selected backup: " << selected_backup << endl;
+
+    // Prepare destination directory
+    string destination_dir = "/data/local/tmp/.vpk/";
+
+    struct stat st = {0};
+    if (stat(destination_dir.c_str(), &st) == -1) {
+        if (dbg) cout << "Directory " << destination_dir << " does not exist. Creating it." << endl;
+        if (mkdir(destination_dir.c_str(), 0777) != 0) {
+            cerr << "Failed to create directory: " << destination_dir << endl;
+            return false;
+        }
+    }
+
+    // Extract the selected tar.gz file
+    string tar_file = WORK_DIR + selected_backup;
+    if (!extract_tar(tar_file, destination_dir)) {
+        cerr << "Failed to extract tar file: " << tar_file << endl;
+        return false;
+    }
+
+    string work_dir = destination_dir + selected_backup.substr(0, selected_backup.find(".tar.gz"));
+
+    if (!restore_system_properties(work_dir)) {
+        cerr << "Failed to restore system properties" << endl;
+        return false;
+    }
+
+    if (!restore_pm_list_features(work_dir)) {
+        cerr << "Failed to restore pm list features" << endl;
+        return false;
+    }
+
+    // TODO: Call other restore functions as needed (e.g., restore_system_files)
+
+    if (!keepcache) delete_directory(work_dir);
+    return true;
+}
+
+void restore_main() {
+    if (gTargetDeviceInfo.withIndex) {
+        if (dbg) cout << "Restoring backup with index: " << gTargetDeviceInfo.index << endl;
+        if (gTargetDeviceInfo.index <= 0) {
+            cerr << "Invalid backup index" << endl;
+            return;
+        }
+
+        if (!select_backup_and_restore(gTargetDeviceInfo.index)) {
+            cerr << "Failed to restore the selected backup" << endl;
+            return;
+        }
+    } else if (gTargetDeviceInfo.withBrand && gTargetDeviceInfo.withModel) {
+        if (dbg) cout << "Restoring backup with brand: " << gTargetDeviceInfo.brand << ", model: " << gTargetDeviceInfo.model << endl;
+
+        if (!select_backup_and_restore(gTargetDeviceInfo.brand, gTargetDeviceInfo.model)) {
+            cerr << "Failed to restore the selected backup based on brand and model" << endl;
+            return;
+        }
+    } else {
+        cerr << "No valid criteria provided for restore" << endl;
         return;
     }
 
-    int index = atoi(argv[2]);
-
-    if (dbg) cout << "restore index provided: " << index << endl;
-
-    if (index <= 0) {
-        cerr << "Invalid backup index" << endl;
-        return;
-    }
-
-    if (!select_backup_and_restore(index)) {
-        cerr << "Failed to restore the selected backup" << endl;
-    }
     generate_boot_id();
     generate_device_info();
     generate_sim_info();
@@ -1272,34 +1405,70 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    for (int i = 1; i < argc; ++i) {
-        string option = argv[i];
-        if ( option == "--dbg" || option == "--debug") {
-            dbg = true;
-            cout << "Debug mode enabled." << endl;
-            continue;
-        } else if ( option == "--kc" || option == "--keepcache") {
-            keepcache = true;
-            cout << "keepcache enabled." << endl;
-            continue;
-        }
-    }
+    string cmd = argv[1];
 
-    string option = argv[1];
-    
-    if (option == "-v" || option == "--version") {
+    if (cmd == "-v" || cmd == "--version") {
         cout << "Version: " << VERSION << endl;
-    } else if (option == "-b" || option == "backup") {
+        return 0;
+    } else if (cmd == "-b" || cmd == "backup") {
         backup_main();
-    } else if (option == "-r" || option == "restore") {
-        restore_main(argc, argv);
-    } else if (option == "-l" || option == "list") {
+        return 0;
+    } else if (cmd == "-l" || cmd == "list") {
         list_main();
-    } else if (option == "-h" || option == "help") {
+        return 0;
+    } else if (cmd == "-h" || cmd == "help") {
         print_help();
+        return 0;
+    } else if (cmd == "-r" || cmd == "restore") {
+        for (int i = 2; i < argc; ++i) {
+            string option = argv[i];
+
+            if (option == "--dbg" || option == "--debug") {
+                dbg = true;
+                if (dbg) cout << "Debug mode enabled." << endl;
+            } else if (option == "--kc" || option == "--keepcache") {
+                keepcache = true;
+                if (dbg) cout << "Keepcache enabled." << endl;
+            } else if (option == "--index") {
+                if (i + 1 < argc) {
+                    gTargetDeviceInfo.withIndex = true;
+                    gTargetDeviceInfo.index = atoi(argv[++i]);
+                    if (dbg) cout << "Index set to: " << gTargetDeviceInfo.index << endl;
+                } else {
+                    cerr << "Error: --index requires a value." << endl;
+                    return 1;
+                }
+            } else if (option == "--brand") {
+                if (i + 1 < argc) {
+                    gTargetDeviceInfo.withBrand = true;
+                    gTargetDeviceInfo.brand = argv[++i];
+                    if (dbg) cout << "Brand set to: " << gTargetDeviceInfo.brand << endl;
+                } else {
+                    cerr << "Error: --brand requires a value." << endl;
+                    return 1;
+                }
+            } else if (option == "--model") {
+                if (i + 1 < argc) {
+                    gTargetDeviceInfo.withModel = true;
+                    gTargetDeviceInfo.model = argv[++i];
+                    if (dbg) cout << "Model set to: " << gTargetDeviceInfo.model << endl;
+                } else {
+                    cerr << "Error: --model requires a value." << endl;
+                    return 1;
+                }
+            } else {
+                cerr << "Unknown option: " << option << endl;
+                print_help();
+                return 1;
+            }
+        }
+
+        restore_main();
+        return 0;
     } else {
-        cerr << "Unknown option: " << option << endl;
+        cerr << "Unknown command: " << cmd << endl;
         print_help();
+        return 1;
     }
 
     return 0;

@@ -42,10 +42,12 @@ int main(int argc, char* argv[]) {
     ProcessState::self()->startThreadPool();
     auto sm = defaultServiceManager();
 
-    sp<vpk::VpkdService> rcdService(new vpk::VpkdService);
+    sp<vpk::VpkdService> vpkdService(new vpk::VpkdService);
+
+    vpkdService->init();
 
     auto status = sm->addService(String16(vpk::VpkdService::getServiceName()),
-                                 rcdService,
+                                 vpkdService,
                                  false,
                                  IServiceManager::DUMP_FLAG_PRIORITY_DEFAULT);
 
