@@ -1,6 +1,6 @@
 cc_binary {
     name: "vpick",
-    srcs: ["vpick.cpp"],
+    srcs: ["main_vpick.cpp"],
     shared_libs: [
         "liblog",
         "libcrypto",
