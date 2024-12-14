@@ -19,12 +19,14 @@
 #include <map>
 #include <random>
 
+#include "version.h"
+
 
 #define WORK_DIR "/data/local/tmp/plugin/meta/vpk/"
 
 using namespace std;
 
-const string VERSION = "1.0.2";
+//const string VERSION = "1.0.2";
 const string encrypted = "N";
 bool dbg = false;
 bool keepcache = false;
@@ -134,17 +136,29 @@ bool create_directory(const string &dir_path) {
 }
 
 void print_help() {
-    cout << "Usage: vpick [options]" << endl;
-    cout << "Options:" << endl;
-    cout << "  --index <index>      Specify the target device index" << endl;
-    cout << "  --brand <brand>      Specify the target device brand" << endl;
-    cout << "  --model <model>      Specify the target device model" << endl;
-    cout << "  -v, --version        Show version information" << endl;
-    cout << "  -b, backup           Create a backup" << endl;
-    cout << "  -r, restore          Restore from a backup" << endl;
-    cout << "  -l, list             List available backups" << endl;
-    cout << "  -h, help             Show this help message" << endl;
+    cout << "Usage: vpick <command> [options]\n";
+    cout << "\nCommands:" << endl;
+    cout << "  -v, --version         Show version information." << endl;
+    cout << "  -b, backup            Create a backup." << endl;
+    cout << "  -l, list              List available backups." << endl;
+    if (dbg) cout << "  -r, restore           Restore from a backup." << endl;
+    cout << "  -h, help              Show this help message." << endl;
+
+    cout << "\nOptions for restore (used with '-r' or 'restore'):" << endl;
+    cout << "  --index <index>       Specify the target device index (1-based)." << endl;
+    cout << "  --brand <brand>       Specify the target device brand." << endl;
+    cout << "  --model <model>       Specify the target device model." << endl;
+    cout << "  --dbg, --debug        Enable debug mode to show detailed logs." << endl;
+    cout << "  --kc, --keepcache     Keep cache files after restore." << endl;
+
+    cout << "\nExamples:" << endl;
+    cout << "  vpick -v" << endl;
+    cout << "  vpick backup" << endl;
+    cout << "  vpick list" << endl;
+    if (dbg) cout << "  vpick restore --index 1 --brand Xiaomi --model Redmi" << endl;
+    cout << "  vpick -r --dbg" << endl;
 }
+
 
 // Function to extract system properties and save them
 string extract_system_properties_and_save() {
@@ -1416,6 +1430,14 @@ int main(int argc, char *argv[]) {
         list_main();
         return 0;
     } else if (cmd == "-h" || cmd == "help") {
+        for (int i = 2; i < argc; ++i) {
+            string option = argv[i];
+
+            if (option == "--dbg" || option == "--debug") {
+                dbg = true;
+                if (dbg) cout << "Debug mode enabled." << endl;
+            }
+        }
         print_help();
         return 0;
     } else if (cmd == "-r" || cmd == "restore") {
