@@ -20,12 +20,11 @@
 #include <random>
 
 
-
-#define WORK_DIR "/data/local/tmp/vpk/"
+#define WORK_DIR "/data/local/tmp/plugin/meta/vpk/"
 
 using namespace std;
 
-const string VERSION = "1.0.0";
+const string VERSION = "1.0.2";
 const string encrypted = "N";
 bool dbg = false;
 bool keepcache = false;

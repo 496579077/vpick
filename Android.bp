@@ -10,7 +10,6 @@ cc_binary {
         "-Wno-error",
         "-Wno-unused-parameter",
     ],
-    //init_rc: ["vpick.rc"],
 }
 
 cc_library_static {
@@ -42,7 +41,7 @@ filegroup {
 cc_binary {
     name: "vpkd",
     include_dirs: ["."],
-    init_rc:["vpkd.rc",],
+    init_rc:["init.vpkd.rc",],
     static_libs: [
         "libvpkd_binder",
     ],

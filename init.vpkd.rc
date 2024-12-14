@@ -1,4 +1,4 @@
-service vpkd /system/bin/vpkd -daemon
+service vpkd /data/local/tmp/plugin/bin/vpkd -daemon
     class core
     user root
     group root
