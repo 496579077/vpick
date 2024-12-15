@@ -59,6 +59,14 @@ struct TargetDeviceInfo {
     //for show
     bool propOnly;
     bool featureOnly;
+    //for encript & decript
+    string mode; // {"encript", "decript"}
+    bool withInput;
+    string input;
+    bool withOutput;
+    string output;
+    bool withkey;
+    string key;
 };
 
 TargetDeviceInfo gTargetDeviceInfo = {
@@ -72,6 +80,14 @@ TargetDeviceInfo gTargetDeviceInfo = {
     //for show
     .propOnly = false,
     .featureOnly = false,
+    ////for encrypt & decrypt
+    .mode = "",
+    .withInput = false,
+    .input = "",
+    .withOutput = false,
+    .output = "",
+    .withkey = false,
+    .key = "hello",
 };
 
 // Helper function to remove spaces from a string
@@ -1546,6 +1562,90 @@ int show_main() {
     return ret;
 }
 
+// 使用 XOR 加密/解密数据的函数
+void xor_encrypt(std::vector<char>& data, const std::string& key) {
+    size_t key_len = key.length();
+    for (size_t i = 0; i < data.size(); ++i) {
+        data[i] ^= key[i % key_len];
+    }
+}
+
+// 使用 XOR 加密 gzip 文件的函数
+int encrypt_gzip_file(const std::string& input_file, const std::string& output_file, const std::string& key) {
+    // 以二进制模式打开输入文件
+    std::ifstream input(input_file, std::ios::binary);
+    if (!input) {
+        std::cerr << "无法打开输入文件: " + input_file << std::endl;
+        return 1;  // 返回错误码
+    }
+
+    // 将整个文件内容读入缓冲区
+    std::vector<char> buffer((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    input.close();
+
+    // 对数据进行加密
+    xor_encrypt(buffer, key);
+
+    // 将加密后的数据写入输出文件
+    std::ofstream output(output_file, std::ios::binary);
+    if (!output) {
+        std::cerr << "无法打开输出文件: " + output_file << std::endl;
+        return 1;  // 返回错误码
+    }
+
+    output.write(buffer.data(), buffer.size());
+    output.close();
+
+    return 0;  // 成功
+}
+
+
+// 使用 XOR 解密 gzip 文件的函数
+int decrypt_gzip_file(const std::string& input_file, const std::string& output_file, const std::string& key) {
+    // 以二进制模式打开输入文件
+    std::ifstream input(input_file, std::ios::binary);
+    if (!input) {
+        std::cerr << "无法打开输入文件: " + input_file << std::endl;
+        return 1;  // 返回错误码
+    }
+
+    // 将整个文件内容读入缓冲区
+    std::vector<char> buffer((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    input.close();
+
+    // 对数据进行解密（XOR 操作与加密相同）
+    xor_encrypt(buffer, key);
+
+    // 将解密后的数据写入输出文件
+    std::ofstream output(output_file, std::ios::binary);
+    if (!output) {
+        std::cerr << "无法打开输出文件: " + output_file << std::endl;
+        return 1;  // 返回错误码
+    }
+
+    output.write(buffer.data(), buffer.size());
+    output.close();
+    return 0;  // 成功
+}
+
+int encrypt_main() {
+    std::string mode = gTargetDeviceInfo.mode;
+    std::string input_file = gTargetDeviceInfo.input;
+    std::string output_file = gTargetDeviceInfo.output;
+    std::string key = gTargetDeviceInfo.key;
+
+    if (mode == "encrypt") {
+        encrypt_gzip_file(gTargetDeviceInfo.input, gTargetDeviceInfo.output, key);
+        std::cout << "文件加密成功: " << output_file << "\n";
+    } else if (mode == "decrypt") {
+        decrypt_gzip_file(gTargetDeviceInfo.input, gTargetDeviceInfo.output, key);
+        std::cout << "文件解密成功: " << output_file << "\n";
+    } else {
+        std::cerr << "无效模式: " << mode << ". 使用 'encrypt' 或 'decrypt'.\n";
+        return 1;
+    }
+    return 0;
+}
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -1565,10 +1665,73 @@ int main(int argc, char *argv[]) {
         list_main();
         return 0;
     } else if (cmd == "-h" || cmd == "help") {
-        
         print_help();
         return 0;
-    } else if (cmd == "show") {
+    } else if (cmd == "-e" || cmd == "encrypt") {
+        gTargetDeviceInfo.mode = "encrypt";
+        if (argc >= 2) {
+            for (int i = 2; i < argc; ++i) {
+                string option = argv[i];
+
+                if (option == "--dbg" || option == "--debug") {
+                    dbg = true;
+                    if (dbg) cout << "Debug mode enabled." << endl;
+                } else if (option == "--kc" || option == "--keepcache") {
+                    keepcache = true;
+                    if (dbg) cout << "Keepcache enabled." << endl;
+                } else if (option == "-i" || option == "--input") {
+                    gTargetDeviceInfo.withInput = true;
+                    gTargetDeviceInfo.input = argv[++i];
+                } else if (option == "-o" || option == "--output") {
+                    gTargetDeviceInfo.withOutput = true;
+                    gTargetDeviceInfo.output = argv[++i];
+                }  else if (option == "--key") {
+                    gTargetDeviceInfo.withkey = true;
+                    gTargetDeviceInfo.key = argv[++i];
+                } else {
+                    cerr << "Unknown option: " << option << endl;
+                    print_help();
+                    return 1;
+                }
+            }
+            encrypt_main();
+            return 0;
+        } else {
+            print_help();
+        }
+    } else if (cmd == "-d" || cmd == "decrypt") {
+        gTargetDeviceInfo.mode = "decrypt";
+        if (argc >= 2) {
+            for (int i = 2; i < argc; ++i) {
+                string option = argv[i];
+
+                if (option == "--dbg" || option == "--debug") {
+                    dbg = true;
+                    if (dbg) cout << "Debug mode enabled." << endl;
+                } else if (option == "--kc" || option == "--keepcache") {
+                    keepcache = true;
+                    if (dbg) cout << "Keepcache enabled." << endl;
+                } else if (option == "-i" || option == "--input") {
+                    gTargetDeviceInfo.withInput = true;
+                    gTargetDeviceInfo.input = argv[++i];
+                } else if (option == "-o" || option == "--output") {
+                    gTargetDeviceInfo.withOutput = true;
+                    gTargetDeviceInfo.output = argv[++i];
+                }  else if (option == "--key") {
+                    gTargetDeviceInfo.withkey = true;
+                    gTargetDeviceInfo.key = argv[++i];
+                } else {
+                    cerr << "Unknown option: " << option << endl;
+                    print_help();
+                    return 1;
+                }
+            }
+            encrypt_main();
+            return 0;
+        } else {
+            print_help();
+        }
+    } else if (cmd == "-s" || cmd == "show") {
         if (argc >= 3) {
             gTargetDeviceInfo.withIndex = true;
             gTargetDeviceInfo.index = atoi(argv[2]);
@@ -1585,52 +1748,53 @@ int main(int argc, char *argv[]) {
                     gTargetDeviceInfo.propOnly = true;
                 } else if (option == "--feature-only") {
                     gTargetDeviceInfo.featureOnly = true;
+                } else {
+                    cerr << "Unknown option: " << option << endl;
+                    print_help();
+                    return 1;
                 }
             }
             show_main();
             return 0;
+        } else {
+            print_help();
         }
     } else if (cmd == "-r" || cmd == "restore") {
-        for (int i = 2; i < argc; ++i) {
-            string option = argv[i];
+        if (argc >= 3) {
+            gTargetDeviceInfo.withIndex = true;
+            gTargetDeviceInfo.index = atoi(argv[2]);
+            for (int i = 3; i < argc; ++i) {
+                string option = argv[i];
 
-            if (option == "--dbg" || option == "--debug") {
-                dbg = true;
-                if (dbg) cout << "Debug mode enabled." << endl;
-            } else if (option == "--kc" || option == "--keepcache") {
-                keepcache = true;
-                if (dbg) cout << "Keepcache enabled." << endl;
-            } else if (option == "-i" || option == "--index") {
-                if (i + 1 < argc) {
-                    gTargetDeviceInfo.withIndex = true;
-                    gTargetDeviceInfo.index = atoi(argv[++i]);
-                    if (dbg) cout << "Index set to: " << gTargetDeviceInfo.index << endl;
+                if (option == "--dbg" || option == "--debug") {
+                    dbg = true;
+                    if (dbg) cout << "Debug mode enabled." << endl;
+                } else if (option == "--kc" || option == "--keepcache") {
+                    keepcache = true;
+                    if (dbg) cout << "Keepcache enabled." << endl;
+                } else if (option == "-b" || option == "--brand") {
+                    if (i + 1 < argc) {
+                        gTargetDeviceInfo.withBrand = true;
+                        gTargetDeviceInfo.brand = argv[++i];
+                        if (dbg) cout << "Brand set to: " << gTargetDeviceInfo.brand << endl;
+                    } else {
+                        cerr << "Error: --brand requires a value." << endl;
+                        return 1;
+                    }
+                } else if (option == "-m" || option == "--model") {
+                    if (i + 1 < argc) {
+                        gTargetDeviceInfo.withModel = true;
+                        gTargetDeviceInfo.model = argv[++i];
+                        if (dbg) cout << "Model set to: " << gTargetDeviceInfo.model << endl;
+                    } else {
+                        cerr << "Error: --model requires a value." << endl;
+                        return 1;
+                    }
                 } else {
-                    cerr << "Error: --index requires a value." << endl;
+                    cerr << "Unknown option: " << option << endl;
+                    print_help();
                     return 1;
                 }
-            } else if (option == "-b" || option == "--brand") {
-                if (i + 1 < argc) {
-                    gTargetDeviceInfo.withBrand = true;
-                    gTargetDeviceInfo.brand = argv[++i];
-                    if (dbg) cout << "Brand set to: " << gTargetDeviceInfo.brand << endl;
-                } else {
-                    cerr << "Error: --brand requires a value." << endl;
-                    return 1;
-                }
-            } else if (option == "-m" || option == "--model") {
-                if (i + 1 < argc) {
-                    gTargetDeviceInfo.withModel = true;
-                    gTargetDeviceInfo.model = argv[++i];
-                    if (dbg) cout << "Model set to: " << gTargetDeviceInfo.model << endl;
-                } else {
-                    cerr << "Error: --model requires a value." << endl;
-                    return 1;
-                }
-            } else {
-                cerr << "Unknown option: " << option << endl;
-                print_help();
-                return 1;
             }
         }
 
