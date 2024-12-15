@@ -180,7 +180,7 @@ void print_help() {
     cout << "  vpick backup" << endl;
     cout << "  vpick list" << endl;
     if (dbg) cout << "  vpick restore --index 1 --brand Xiaomi --model Redmi" << endl;
-    cout << "  vpick -r --dbg" << endl;
+    if (dbg) cout << "  vpick -r --dbg" << endl;
 }
 
 
@@ -1561,7 +1561,7 @@ int show_main() {
     if (!keepcache) delete_directory(work_dir);
     return ret;
 }
-
+/////////////////////////////////////////////////////////////////////
 // 使用 XOR 加密/解密数据的函数
 void xor_encrypt(std::vector<char>& data, const std::string& key) {
     size_t key_len = key.length();
@@ -1646,165 +1646,111 @@ int encrypt_main() {
     }
     return 0;
 }
+/////////////////////////////////////////////////////////////////////
 
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        print_help();
-        return 0;
+void process_options(int argc, char* argv[], int& i) {
+    while (i < argc) {
+        string option = argv[i];
+
+        if (option == "--dbg" || option == "--debug") {
+            dbg = true;
+        } else if (option == "--kc" || option == "--keepcache") {
+            keepcache = true;
+        } else if (option == "-i" || option == "--input") {
+            gTargetDeviceInfo.withInput = true;
+            gTargetDeviceInfo.input = argv[++i];
+        } else if (option == "-o" || option == "--output") {
+            gTargetDeviceInfo.withOutput = true;
+            gTargetDeviceInfo.output = argv[++i];
+        } else if (option == "--key") {
+            gTargetDeviceInfo.withkey = true;
+            gTargetDeviceInfo.key = argv[++i];
+        } else if (option == "-b" || option == "--brand") {
+            if (i + 1 < argc) {
+                gTargetDeviceInfo.withBrand = true;
+                gTargetDeviceInfo.brand = argv[++i];
+                if (dbg) cout << "Brand set to: " << gTargetDeviceInfo.brand << endl;
+            } else {
+                cerr << "Error: --brand requires a value." << endl;
+                print_help();
+                exit(1);
+            }
+        } else if (option == "-m" || option == "--model") {
+            if (i + 1 < argc) {
+                gTargetDeviceInfo.withModel = true;
+                gTargetDeviceInfo.model = argv[++i];
+                if (dbg) cout << "Model set to: " << gTargetDeviceInfo.model << endl;
+            } else {
+                cerr << "Error: --model requires a value." << endl;
+                print_help();
+                exit(1);
+            }
+        } else if (option == "--prop-only") {
+            gTargetDeviceInfo.propOnly = true;
+        } else if (option == "--feature-only") {
+            gTargetDeviceInfo.featureOnly = true;
+        } else {
+            cerr << "Unknown option: " << option << endl;
+            print_help();
+            exit(1);
+        }
+        i++;
     }
+}
 
-    string cmd = argv[1];
-
+void handle_command(const string& cmd, int argc, char* argv[]) {
     if (cmd == "-v" || cmd == "version") {
         cout << "Version: " << VERSION << endl;
-        return 0;
     } else if (cmd == "-b" || cmd == "backup") {
         backup_main();
-        return 0;
     } else if (cmd == "-l" || cmd == "list") {
         list_main();
-        return 0;
     } else if (cmd == "-h" || cmd == "help") {
         print_help();
-        return 0;
     } else if (cmd == "-e" || cmd == "encrypt") {
         gTargetDeviceInfo.mode = "encrypt";
-        if (argc >= 2) {
-            for (int i = 2; i < argc; ++i) {
-                string option = argv[i];
-
-                if (option == "--dbg" || option == "--debug") {
-                    dbg = true;
-                    if (dbg) cout << "Debug mode enabled." << endl;
-                } else if (option == "--kc" || option == "--keepcache") {
-                    keepcache = true;
-                    if (dbg) cout << "Keepcache enabled." << endl;
-                } else if (option == "-i" || option == "--input") {
-                    gTargetDeviceInfo.withInput = true;
-                    gTargetDeviceInfo.input = argv[++i];
-                } else if (option == "-o" || option == "--output") {
-                    gTargetDeviceInfo.withOutput = true;
-                    gTargetDeviceInfo.output = argv[++i];
-                }  else if (option == "--key") {
-                    gTargetDeviceInfo.withkey = true;
-                    gTargetDeviceInfo.key = argv[++i];
-                } else {
-                    cerr << "Unknown option: " << option << endl;
-                    print_help();
-                    return 1;
-                }
-            }
-            encrypt_main();
-            return 0;
-        } else {
-            print_help();
-        }
+        int i = 2;
+        process_options(argc, argv, i);
+        encrypt_main();
     } else if (cmd == "-d" || cmd == "decrypt") {
         gTargetDeviceInfo.mode = "decrypt";
-        if (argc >= 2) {
-            for (int i = 2; i < argc; ++i) {
-                string option = argv[i];
-
-                if (option == "--dbg" || option == "--debug") {
-                    dbg = true;
-                    if (dbg) cout << "Debug mode enabled." << endl;
-                } else if (option == "--kc" || option == "--keepcache") {
-                    keepcache = true;
-                    if (dbg) cout << "Keepcache enabled." << endl;
-                } else if (option == "-i" || option == "--input") {
-                    gTargetDeviceInfo.withInput = true;
-                    gTargetDeviceInfo.input = argv[++i];
-                } else if (option == "-o" || option == "--output") {
-                    gTargetDeviceInfo.withOutput = true;
-                    gTargetDeviceInfo.output = argv[++i];
-                }  else if (option == "--key") {
-                    gTargetDeviceInfo.withkey = true;
-                    gTargetDeviceInfo.key = argv[++i];
-                } else {
-                    cerr << "Unknown option: " << option << endl;
-                    print_help();
-                    return 1;
-                }
-            }
-            encrypt_main();
-            return 0;
-        } else {
-            print_help();
-        }
+        int i = 2;
+        process_options(argc, argv, i);
+        encrypt_main();
     } else if (cmd == "-s" || cmd == "show") {
-        if (argc >= 3) {
-            gTargetDeviceInfo.withIndex = true;
-            gTargetDeviceInfo.index = atoi(argv[2]);
-            for (int i = 3; i < argc; ++i) {
-                string option = argv[i];
-
-                if (option == "--dbg" || option == "--debug") {
-                    dbg = true;
-                    if (dbg) cout << "Debug mode enabled." << endl;
-                } else if (option == "--kc" || option == "--keepcache") {
-                    keepcache = true;
-                    if (dbg) cout << "Keepcache enabled." << endl;
-                } else if (option == "--prop-only") {
-                    gTargetDeviceInfo.propOnly = true;
-                } else if (option == "--feature-only") {
-                    gTargetDeviceInfo.featureOnly = true;
-                } else {
-                    cerr << "Unknown option: " << option << endl;
-                    print_help();
-                    return 1;
-                }
-            }
-            show_main();
-            return 0;
-        } else {
+        if (argc < 3) {
             print_help();
+            return;
         }
+        gTargetDeviceInfo.withIndex = true;
+        gTargetDeviceInfo.index = atoi(argv[2]);
+        int i = 3;
+        process_options(argc, argv, i);
+        show_main();
     } else if (cmd == "-r" || cmd == "restore") {
-        if (argc >= 3) {
-            gTargetDeviceInfo.withIndex = true;
-            gTargetDeviceInfo.index = atoi(argv[2]);
-            for (int i = 3; i < argc; ++i) {
-                string option = argv[i];
-
-                if (option == "--dbg" || option == "--debug") {
-                    dbg = true;
-                    if (dbg) cout << "Debug mode enabled." << endl;
-                } else if (option == "--kc" || option == "--keepcache") {
-                    keepcache = true;
-                    if (dbg) cout << "Keepcache enabled." << endl;
-                } else if (option == "-b" || option == "--brand") {
-                    if (i + 1 < argc) {
-                        gTargetDeviceInfo.withBrand = true;
-                        gTargetDeviceInfo.brand = argv[++i];
-                        if (dbg) cout << "Brand set to: " << gTargetDeviceInfo.brand << endl;
-                    } else {
-                        cerr << "Error: --brand requires a value." << endl;
-                        return 1;
-                    }
-                } else if (option == "-m" || option == "--model") {
-                    if (i + 1 < argc) {
-                        gTargetDeviceInfo.withModel = true;
-                        gTargetDeviceInfo.model = argv[++i];
-                        if (dbg) cout << "Model set to: " << gTargetDeviceInfo.model << endl;
-                    } else {
-                        cerr << "Error: --model requires a value." << endl;
-                        return 1;
-                    }
-                } else {
-                    cerr << "Unknown option: " << option << endl;
-                    print_help();
-                    return 1;
-                }
-            }
+        if (argc < 3) {
+            print_help();
+            return;
         }
-
+        gTargetDeviceInfo.withIndex = true;
+        gTargetDeviceInfo.index = atoi(argv[2]);
+        int i = 3;
+        process_options(argc, argv, i);
         restore_main();
-        return 0;
     } else {
         cerr << "Unknown command: " << cmd << endl;
         print_help();
+    }
+}
+
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        print_help();
         return 1;
     }
+
+    string cmd = argv[1];
+    handle_command(cmd, argc, argv);
 
     return 0;
 }
