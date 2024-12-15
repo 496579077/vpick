@@ -49,21 +49,29 @@ DeviceInfo gDeviceInfo = {
 };
 
 struct TargetDeviceInfo {
+    //for restore
     bool withIndex;
     int index;
     bool withBrand;
     string brand;
     bool withModel;
     string model;
+    //for show
+    bool propOnly;
+    bool featureOnly;
 };
 
 TargetDeviceInfo gTargetDeviceInfo = {
+    //for restore
     .withIndex = false,
     .index = -1,
     .withBrand = false,
     .brand = "",
     .withModel = false,
     .model = "",
+    //for show
+    .propOnly = false,
+    .featureOnly = false,
 };
 
 // Helper function to remove spaces from a string
@@ -1411,6 +1419,133 @@ void restore_main() {
     cout << "Success" << endl;
 }
 
+int show_file(const string &work_dir, const string &filename) {
+    ifstream prop_file(work_dir + "/" + filename);
+    if (!prop_file.is_open()) {
+        cerr << "Failed to open prop.pick file" << endl;
+        return -1;
+    }
+
+    string line;
+    while (getline(prop_file, line)) {
+        line = line.substr(line.find_first_not_of(" \t\n\r"), line.find_last_not_of(" \t\n\r") + 1);
+        if (line.empty()) {
+            continue;
+        }
+        cout << line << endl;
+    }
+
+    return 0;
+}
+
+// int show_system_properties(const string &work_dir) {
+//     show_file(work_dir, "pm_list_features");
+//     return 0;
+// }
+
+// int show_pm_list_feature(const string &work_dir) {
+//     show_file(work_dir, "pm_list_features");
+//     return 0;
+// }
+
+string select_backup_by_index(int index) {
+    DIR *dir = opendir(WORK_DIR);
+    if (dir == nullptr) {
+        cerr << "Failed to open directory: " << WORK_DIR << endl;
+        return "";
+    }
+
+    vector<string> backup_files;
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        string file_name = entry->d_name;
+        if (file_name.find(".tar.gz") != string::npos) {
+            backup_files.push_back(file_name);
+        }
+    }
+    closedir(dir);
+
+    // Sort the backup files to ensure consistent order
+    sort(backup_files.begin(), backup_files.end());
+
+    if (backup_files.empty()) {
+        cerr << "No backup files found in " << WORK_DIR << endl;
+        return "";
+    }
+
+    // Check if the index is valid
+    if (index < 1 || index > backup_files.size()) {
+        cerr << "Invalid backup index: " << index << endl;
+        return "";
+    }
+
+    // Adjust to 0-based index
+    int adjusted_index = index - 1;
+    string selected_backup = backup_files[adjusted_index];
+    if (dbg) cout << "Selected backup: " << selected_backup << endl;
+
+    // Prepare destination directory
+    string destination_dir = string(WORK_DIR) + ".vpk/";
+    struct stat st = {0};
+    if (stat(destination_dir.c_str(), &st) == -1) {
+        if (errno == ENOENT) {
+            if (dbg) cout << "Directory " << destination_dir << " does not exist. Creating it." << endl;
+            if (mkdir(destination_dir.c_str(), 0777) != 0) {
+                cerr << "Failed to create directory: " << destination_dir 
+                     << ", errno: " << strerror(errno) << endl;
+                return "";
+            }
+        } else {
+            cerr << "Failed to check directory: " << destination_dir 
+                 << ", errno: " << strerror(errno) << endl;
+            return "";
+        }
+    }
+
+    // Extract the selected tar.gz file
+    string tar_file = WORK_DIR + selected_backup;
+    if (!extract_tar(tar_file, destination_dir)) {
+        cerr << "Failed to extract tar file: " << tar_file << endl;
+        return "";
+    }
+
+    // Generate work directory name
+    size_t pos = selected_backup.find(".tar.gz");
+    if (pos == string::npos) {
+        cerr << "Invalid backup file name: " << selected_backup << endl;
+        return "";
+    }
+    string work_dir = destination_dir + selected_backup.substr(0, pos);
+
+    if (dbg) cout << "Work directory: " << work_dir << endl;
+    return work_dir;
+}
+
+
+int show_main() {
+    string work_dir = select_backup_by_index(gTargetDeviceInfo.index);
+    if (work_dir.empty()) {
+        cerr << "Failed to select by index: " << gTargetDeviceInfo.index << endl;
+        return -1;
+    }
+    int ret = 0;
+    if (gTargetDeviceInfo.propOnly) {
+        show_file(work_dir, "prop.pick");
+        if (!keepcache) delete_directory(work_dir);
+        return 0;
+    }
+    if (gTargetDeviceInfo.featureOnly) {
+        show_file(work_dir, "pm_list_features");
+        if (!keepcache) delete_directory(work_dir);
+        return 0;
+    }
+
+    show_file(work_dir, "prop.pick");
+    show_file(work_dir, "pm_list_features");
+    if (!keepcache) delete_directory(work_dir);
+    return ret;
+}
+
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -1420,7 +1555,7 @@ int main(int argc, char *argv[]) {
 
     string cmd = argv[1];
 
-    if (cmd == "-v" || cmd == "--version") {
+    if (cmd == "-v" || cmd == "version") {
         cout << "Version: " << VERSION << endl;
         return 0;
     } else if (cmd == "-b" || cmd == "backup") {
@@ -1430,16 +1565,31 @@ int main(int argc, char *argv[]) {
         list_main();
         return 0;
     } else if (cmd == "-h" || cmd == "help") {
-        for (int i = 2; i < argc; ++i) {
-            string option = argv[i];
-
-            if (option == "--dbg" || option == "--debug") {
-                dbg = true;
-                if (dbg) cout << "Debug mode enabled." << endl;
-            }
-        }
+        
         print_help();
         return 0;
+    } else if (cmd == "show") {
+        if (argc >= 3) {
+            gTargetDeviceInfo.withIndex = true;
+            gTargetDeviceInfo.index = atoi(argv[2]);
+            for (int i = 3; i < argc; ++i) {
+                string option = argv[i];
+
+                if (option == "--dbg" || option == "--debug") {
+                    dbg = true;
+                    if (dbg) cout << "Debug mode enabled." << endl;
+                } else if (option == "--kc" || option == "--keepcache") {
+                    keepcache = true;
+                    if (dbg) cout << "Keepcache enabled." << endl;
+                } else if (option == "--prop-only") {
+                    gTargetDeviceInfo.propOnly = true;
+                } else if (option == "--feature-only") {
+                    gTargetDeviceInfo.featureOnly = true;
+                }
+            }
+            show_main();
+            return 0;
+        }
     } else if (cmd == "-r" || cmd == "restore") {
         for (int i = 2; i < argc; ++i) {
             string option = argv[i];
@@ -1450,7 +1600,7 @@ int main(int argc, char *argv[]) {
             } else if (option == "--kc" || option == "--keepcache") {
                 keepcache = true;
                 if (dbg) cout << "Keepcache enabled." << endl;
-            } else if (option == "--index") {
+            } else if (option == "-i" || option == "--index") {
                 if (i + 1 < argc) {
                     gTargetDeviceInfo.withIndex = true;
                     gTargetDeviceInfo.index = atoi(argv[++i]);
@@ -1459,7 +1609,7 @@ int main(int argc, char *argv[]) {
                     cerr << "Error: --index requires a value." << endl;
                     return 1;
                 }
-            } else if (option == "--brand") {
+            } else if (option == "-b" || option == "--brand") {
                 if (i + 1 < argc) {
                     gTargetDeviceInfo.withBrand = true;
                     gTargetDeviceInfo.brand = argv[++i];
@@ -1468,7 +1618,7 @@ int main(int argc, char *argv[]) {
                     cerr << "Error: --brand requires a value." << endl;
                     return 1;
                 }
-            } else if (option == "--model") {
+            } else if (option == "-m" || option == "--model") {
                 if (i + 1 < argc) {
                     gTargetDeviceInfo.withModel = true;
                     gTargetDeviceInfo.model = argv[++i];
