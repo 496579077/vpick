@@ -27,7 +27,6 @@
 
 using namespace std;
 
-//const string VERSION = "1.0.2";
 const string encrypted = "E";
 bool dbg = false;
 bool keepcache = false;
@@ -89,6 +88,16 @@ OpstionsType gOpstions = {
     .output = "",
     .withkey = false,
     .key = "hello",
+};
+
+struct FileInfo {
+    std::string manufacturer;
+    std::string brand;
+    std::string model;
+    std::string android_version;
+    std::string build_id;
+    std::string enc_flag;
+    std::string checksum;
 };
 
 // Helper function to remove spaces from a string
@@ -159,31 +168,6 @@ bool create_directory(const string &dir_path) {
 
     return true;
 }
-
-void print_help() {
-    cout << "Usage: vpick <command> [options]\n";
-    cout << "\nCommands:" << endl;
-    cout << "  -v, --version         Show version information." << endl;
-    cout << "  -b, backup            Create a backup." << endl;
-    cout << "  -l, list              List available backups." << endl;
-    if (dbg) cout << "  -r, restore           Restore from a backup." << endl;
-    cout << "  -h, help              Show this help message." << endl;
-
-    cout << "\nOptions for restore (used with '-r' or 'restore'):" << endl;
-    cout << "  --index <index>       Specify the target device index (1-based)." << endl;
-    cout << "  --brand <brand>       Specify the target device brand." << endl;
-    cout << "  --model <model>       Specify the target device model." << endl;
-    if (dbg) cout << "  --dbg, --debug        Enable debug mode to show detailed logs." << endl;
-    if (dbg) cout << "  --kc, --keepcache     Keep cache files after restore." << endl;
-
-    cout << "\nExamples:" << endl;
-    cout << "  vpick -v" << endl;
-    cout << "  vpick backup" << endl;
-    cout << "  vpick list" << endl;
-    if (dbg) cout << "  vpick restore --index 1 --brand Xiaomi --model Redmi" << endl;
-    if (dbg) cout << "  vpick -r --dbg" << endl;
-}
-
 
 // Function to extract system properties and save them
 string extract_system_properties_and_save() {
@@ -377,18 +361,6 @@ void backup_version(const std::string& path) {
     execute_command("echo " + VERSION + " > " + path + "/version");
 }
 
-
-struct FileInfo {
-    std::string manufacturer;
-    std::string brand;
-    std::string model;
-    std::string android_version;
-    std::string build_id;
-    std::string enc_flag;
-    std::string checksum;
-};
-
-// 分割字符串的辅助函数
 std::vector<std::string> split_string(const std::string& str, char delimiter) {
     std::vector<std::string> tokens;
     std::stringstream ss(str);
@@ -577,6 +549,12 @@ void list_main() {
             string build_id = match[5];      // 构建 ID
             string enc = match[6];           // enc
 
+            if ((gOpstions.withBrand == true) && (gOpstions.brand != brand)) {
+                continue;
+            }
+            if ((gOpstions.withModel == true) && (gOpstions.model != model)) {
+                continue;
+            }
             // 输出信息，左对齐
             printf("%-5zu | %-15s | %-15s | %-15s | %-7s | %-18s | %-4s\n", i + 1, manufacturer.c_str(), brand.c_str(), model.c_str(), version.c_str(), build_id.c_str(), enc.c_str());
         } else {
@@ -1675,6 +1653,41 @@ int encrypt_main() {
     return 0;
 }
 /////////////////////////////////////////////////////////////////////
+void print_help() {
+    cout << "Usage: vpick <command> [options]\n";
+    cout << "\nCommands:" << endl;
+    cout << "  -v, --version         Show version information." << endl;
+    cout << "  -b, backup            Create a backup." << endl;
+    cout << "  -l, list              List available backups." << endl;
+    cout << "  -r, restore           Restore from a backup." << endl;
+    cout << "  -e, encrypt           Encrypt a file." << endl;
+    cout << "  -d, decrypt           Decrypt a file." << endl;
+    cout << "  -s, show              Show details of a backup." << endl;
+    cout << "  getprop               Retrieve system properties." << endl;
+    cout << "  -h, help              Show this help message." << endl;
+
+    cout << "\nOptions:" << endl;
+    cout << "  --index <index>       Specify the target backup index (1-based)." << endl;
+    cout << "  --brand <brand>       Specify the target device brand." << endl;
+    cout << "  --model <model>       Specify the target device model." << endl;
+    cout << "  --prop-only           Only restore system properties." << endl;
+    cout << "  --feature-only        Only restore system features." << endl;
+    cout << "  --key <key>           Specify the encryption/decryption key." << endl;
+    cout << "  -i, --input <file>    Specify the input file for encryption/decryption." << endl;
+    cout << "  -o, --output <file>   Specify the output file for encryption/decryption." << endl;
+    cout << "  --dbg, --debug        Enable debug mode to show detailed logs." << endl;
+    cout << "  --kc, --keepcache     Keep cache files after restore." << endl;
+
+    cout << "\nExamples:" << endl;
+    cout << "  vpick -v" << endl;
+    cout << "  vpick backup" << endl;
+    cout << "  vpick list" << endl;
+    cout << "  vpick restore --index 1 --brand Xiaomi --model Redmi" << endl;
+    cout << "  vpick -r --dbg" << endl;
+    cout << "  vpick encrypt -i file.txt -o file.txt.enc --key mykey" << endl;
+    cout << "  vpick decrypt -i file.txt.enc -o file.txt --key mykey" << endl;
+}
+
 
 void process_options(int argc, char* argv[], int& i) {
     while (i < argc) {
@@ -1687,6 +1700,16 @@ void process_options(int argc, char* argv[], int& i) {
         } else if (option == "-i" || option == "--input") {
             gOpstions.withInput = true;
             gOpstions.input = argv[++i];
+        } else if (option == "--index") {
+            if (i + 1 < argc) {
+                gOpstions.withIndex = true;
+                gOpstions.index = atoi(argv[++i]);
+                if (dbg) cout << "Index set to: " << gOpstions.index << endl;
+            } else {
+                cerr << "Error: --brand requires a value." << endl;
+                print_help();
+                exit(1);
+            }
         } else if (option == "-o" || option == "--output") {
             gOpstions.withOutput = true;
             gOpstions.output = argv[++i];
@@ -1771,13 +1794,13 @@ void handle_command(const string& cmd, int argc, char* argv[]) {
         gOpstions.propOnly = true;
         show_main();
     } else if (cmd == "-r" || cmd == "restore") {
-        if (argc < 3) {
-            print_help();
-            return;
-        }
-        gOpstions.withIndex = true;
-        gOpstions.index = atoi(argv[2]);
-        int i = 3;
+        // if (argc < 3) {
+        //     print_help();
+        //     return;
+        // }
+        // gOpstions.withIndex = true;
+        // gOpstions.index = atoi(argv[2]);
+        int i = 2;
         process_options(argc, argv, i);
         restore_main();
     } else {
