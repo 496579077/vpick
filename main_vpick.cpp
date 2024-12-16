@@ -28,7 +28,7 @@
 using namespace std;
 
 //const string VERSION = "1.0.2";
-const string encrypted = "N";
+const string encrypted = "E";
 bool dbg = false;
 bool keepcache = false;
 
@@ -353,19 +353,6 @@ bool backup_pm_list_features(const string &work_dir) {
     }
 }
 
-// Function to backup the working directory to a .tar.gz file
-bool backup_to_tar(const string &work_dir) {
-    string tar_command = "tar -czf " + work_dir + ".tar.gz -C " + WORK_DIR + " " + work_dir.substr(strlen(WORK_DIR));
-    int status = system(tar_command.c_str());
-
-    if (status != 0) {
-        cerr << "Failed to create tar.gz backup" << endl;
-        return false;
-    }
-
-    if (dbg) cout << "Backup created: " << work_dir + ".tar.gz" << endl;
-    return true;
-}
 
 int delete_directory(const std::string& path) {
     // Check if directory exists
@@ -389,6 +376,126 @@ int delete_directory(const std::string& path) {
 void backup_version(const std::string& path) {
     execute_command("echo " + VERSION + " > " + path + "/version");
 }
+
+
+struct FileInfo {
+    std::string manufacturer;
+    std::string brand;
+    std::string model;
+    std::string android_version;
+    std::string build_id;
+    std::string enc_flag;
+    std::string checksum;
+};
+
+// 分割字符串的辅助函数
+std::vector<std::string> split_string(const std::string& str, char delimiter) {
+    std::vector<std::string> tokens;
+    std::stringstream ss(str);
+    std::string token;
+    while (std::getline(ss, token, delimiter)) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
+// 解析文件名并提取字段的函数
+FileInfo parse_filename(const std::string& filename) {
+    FileInfo info;
+
+    // 移除文件扩展名
+    size_t pos = filename.find_last_of('.');
+    std::string base_name = (pos != std::string::npos) ? filename.substr(0, pos) : filename;
+
+    // 分割字段
+    std::vector<std::string> fields = split_string(base_name, '=');
+    if (fields.size() == 7) {  // 确保字段数量正确
+        info.manufacturer = fields[0];
+        info.brand = fields[1];
+        info.model = fields[2];
+        info.android_version = fields[3];
+        info.build_id = fields[4];
+        info.enc_flag = fields[5];
+        info.checksum = fields[6];
+    } else {
+        std::cerr << "Invalid file format: " << filename << std::endl;
+    }
+
+    return info;
+}
+
+bool backup_to_tar(const string &work_dir) {
+    //tar work_dir:
+    std::string filename = work_dir + ".tar.gz";
+    std::string command = "tar -czf " + filename + " -C " + WORK_DIR + " " + work_dir.substr(strlen(WORK_DIR));
+    if (dbg) cout << command << endl;
+    execute_command(command);
+    //encrypt
+    std::string tmpname = work_dir + ".tar.gz.enc";
+    encrypt_gzip_file(filename, tmpname, gOpstions.key);
+    //remove tar.gz
+    command = "rm -fr "  + filename;
+    if (dbg) cout << command << endl;
+    execute_command(command);
+    //rename tar.gz.enc => tar.gz
+    command = "mv "  + tmpname + " " + filename;
+    if (dbg) cout << command << endl;
+    execute_command(command);
+    
+    return true;
+}
+
+void split_path(const std::string& full_path, std::string& directory, std::string& filename) {
+    size_t pos = full_path.find_last_of("/\\");
+    if (pos != std::string::npos) {
+        directory = full_path.substr(0, pos);
+        filename = full_path.substr(pos + 1);
+    } else {
+        directory.clear();
+        filename = full_path;
+    }
+}
+
+bool extract_tar(const string &tar_file, const string &destination) {
+    std::string work_dir;
+    std::string filename;
+    split_path(tar_file, work_dir, filename);
+    FileInfo info = parse_filename(filename);
+    std::string command = "";
+    std::string file_encrypted = destination + filename + ".enc";
+    std::string file_deccrypted = destination + filename;
+
+    if (info.enc_flag == "N") {
+        if (dbg) cout << "enc = N" << endl;
+        command = "cp "  + tar_file + " " + file_deccrypted;
+        if (dbg) cout << command << endl;
+        execute_command(command);
+    } else if (info.enc_flag == "E") {
+        if (dbg) cout << "enc = E" << endl;
+        command = "cp "  + tar_file + " " + file_encrypted;
+        if (dbg) cout << command << endl;
+        execute_command(command);
+        //decrypt
+        decrypt_gzip_file(file_encrypted, file_deccrypted, gOpstions.key);
+        //remove tar.gz
+        command = "rm -fr "  + file_encrypted;
+        if (dbg) cout << command << endl;
+        execute_command(command);
+    }
+
+    //extract tar.gz
+    command = "tar -xzf " + file_deccrypted + " -C " + destination;
+    if (dbg) cout << command << endl;
+    execute_command(command);
+
+    //rm tar.gz
+    command = "rm " + file_deccrypted;
+    if (dbg) cout << command << endl;
+    execute_command(command);
+    
+    return true;
+}
+
 
 void backup_main() {
     // Create the base directory
@@ -477,18 +584,6 @@ void list_main() {
         }
     }
     cout << "-------------------------------------------------------------------------------------------------" << endl;
-}
-
-
-//////restore
-bool extract_tar(const string &tar_file, const string &destination) {
-    string command = "tar -xzf " + tar_file + " -C " + destination;
-    int status = system(command.c_str());
-    if (status != 0) {
-        cerr << "Failed to extract tar file: " << tar_file << endl;
-        return false;
-    }
-    return true;
 }
 
 
@@ -703,13 +798,16 @@ bool restore_system_properties(const string &work_dir) {
         "ro.ril.oem.imei2",
         "persist.sim.imei1",
         "persist.sim.imei2",
-
+        //
+        "persist.sys.gps.lpp",
+        "ro.soc.manufacturer",
+        "ro.soc.model",
     };
 
     string prop_pick_path = work_dir + "/prop.pick";
     ifstream prop_file(prop_pick_path);
     if (!prop_file.is_open()) {
-        cerr << "Failed to open prop.pick file" << endl;
+        cerr << "Failed to open prop.pick file:" << prop_pick_path << endl;
         return false;
     }
 
@@ -1632,10 +1730,16 @@ void handle_command(const string& cmd, int argc, char* argv[]) {
     if (cmd == "-v" || cmd == "version") {
         cout << "Version: " << VERSION << endl;
     } else if (cmd == "-b" || cmd == "backup") {
+        int i = 2;
+        process_options(argc, argv, i);
         backup_main();
     } else if (cmd == "-l" || cmd == "list") {
+        int i = 2;
+        process_options(argc, argv, i);
         list_main();
     } else if (cmd == "-h" || cmd == "help") {
+        int i = 2;
+        process_options(argc, argv, i);
         print_help();
     } else if (cmd == "-e" || cmd == "encrypt") {
         gOpstions.mode = "encrypt";
