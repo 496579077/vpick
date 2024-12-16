@@ -25,6 +25,8 @@ mkdir $BUILD_DIR/$NAME-$VERSION
 mv $CACHE_DIR/vpick.tar.gz $BUILD_DIR/$NAME-$VERSION
 cp res/install.sh $BUILD_DIR/$NAME-$VERSION
 cp res/uninstall.sh $BUILD_DIR/$NAME-$VERSION
+chmod 777 $BUILD_DIR/$NAME-$VERSION/install.sh
+chmod 777 $BUILD_DIR/$NAME-$VERSION/uninstall.sh
 
 tar -zcvf $BUILD_DIR/$NAME-$VERSION.tar.gz -C $BUILD_DIR $NAME-$VERSION
 $BUILD_DIR/$NAME-$VERSION

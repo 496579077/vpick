@@ -173,8 +173,8 @@ void print_help() {
     cout << "  --index <index>       Specify the target device index (1-based)." << endl;
     cout << "  --brand <brand>       Specify the target device brand." << endl;
     cout << "  --model <model>       Specify the target device model." << endl;
-    cout << "  --dbg, --debug        Enable debug mode to show detailed logs." << endl;
-    cout << "  --kc, --keepcache     Keep cache files after restore." << endl;
+    if (dbg) cout << "  --dbg, --debug        Enable debug mode to show detailed logs." << endl;
+    if (dbg) cout << "  --kc, --keepcache     Keep cache files after restore." << endl;
 
     cout << "\nExamples:" << endl;
     cout << "  vpick -v" << endl;
