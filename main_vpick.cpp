@@ -1659,33 +1659,33 @@ void print_help() {
     cout << "  -v, --version         Show version information." << endl;
     cout << "  -b, backup            Create a backup." << endl;
     cout << "  -l, list              List available backups." << endl;
-    cout << "  -r, restore           Restore from a backup." << endl;
-    cout << "  -e, encrypt           Encrypt a file." << endl;
-    cout << "  -d, decrypt           Decrypt a file." << endl;
-    cout << "  -s, show              Show details of a backup." << endl;
-    cout << "  getprop               Retrieve system properties." << endl;
-    cout << "  -h, help              Show this help message." << endl;
+    if (dbg) cout << "  -r, restore           Restore from a backup." << endl;
+    if (dbg) cout << "  -e, encrypt           Encrypt a file." << endl;
+    if (dbg) cout << "  -d, decrypt           Decrypt a file." << endl;
+    if (dbg) cout << "  -s, show              Show details of a backup." << endl;
+    if (dbg) cout << "  getprop               Retrieve system properties." << endl;
+    if (dbg) cout << "  -h, help              Show this help message." << endl;
 
-    cout << "\nOptions:" << endl;
-    cout << "  --index <index>       Specify the target backup index (1-based)." << endl;
-    cout << "  --brand <brand>       Specify the target device brand." << endl;
-    cout << "  --model <model>       Specify the target device model." << endl;
-    cout << "  --prop-only           Only restore system properties." << endl;
-    cout << "  --feature-only        Only restore system features." << endl;
-    cout << "  --key <key>           Specify the encryption/decryption key." << endl;
-    cout << "  -i, --input <file>    Specify the input file for encryption/decryption." << endl;
-    cout << "  -o, --output <file>   Specify the output file for encryption/decryption." << endl;
-    cout << "  --dbg, --debug        Enable debug mode to show detailed logs." << endl;
-    cout << "  --kc, --keepcache     Keep cache files after restore." << endl;
+    if (dbg) cout << "\nOptions:" << endl;
+    if (dbg) cout << "  --index <index>       Specify the target backup index (1-based)." << endl;
+    if (dbg) cout << "  --brand <brand>       Specify the target device brand." << endl;
+    if (dbg) cout << "  --model <model>       Specify the target device model." << endl;
+    if (dbg) cout << "  --prop-only           Only restore system properties." << endl;
+    if (dbg) cout << "  --feature-only        Only restore system features." << endl;
+    if (dbg) cout << "  --key <key>           Specify the encryption/decryption key." << endl;
+    if (dbg) cout << "  -i, --input <file>    Specify the input file for encryption/decryption." << endl;
+    if (dbg) cout << "  -o, --output <file>   Specify the output file for encryption/decryption." << endl;
+    if (dbg) cout << "  --dbg, --debug        Enable debug mode to show detailed logs." << endl;
+    if (dbg) cout << "  --kc, --keepcache     Keep cache files after restore." << endl;
 
     cout << "\nExamples:" << endl;
     cout << "  vpick -v" << endl;
     cout << "  vpick backup" << endl;
     cout << "  vpick list" << endl;
-    cout << "  vpick restore --index 1 --brand Xiaomi --model Redmi" << endl;
-    cout << "  vpick -r --dbg" << endl;
-    cout << "  vpick encrypt -i file.txt -o file.txt.enc --key mykey" << endl;
-    cout << "  vpick decrypt -i file.txt.enc -o file.txt --key mykey" << endl;
+    if (dbg) cout << "  vpick restore --index 1 --brand Xiaomi --model Redmi" << endl;
+    if (dbg) cout << "  vpick -r --dbg" << endl;
+    if (dbg) cout << "  vpick encrypt -i file.txt -o file.txt.enc --key mykey" << endl;
+    if (dbg) cout << "  vpick decrypt -i file.txt.enc -o file.txt --key mykey" << endl;
 }
 
 
@@ -1751,7 +1751,7 @@ void process_options(int argc, char* argv[], int& i) {
 
 void handle_command(const string& cmd, int argc, char* argv[]) {
     if (cmd == "-v" || cmd == "version") {
-        cout << "Version: " << VERSION << endl;
+        cout << VERSION << endl;
     } else if (cmd == "-b" || cmd == "backup") {
         int i = 2;
         process_options(argc, argv, i);
