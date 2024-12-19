@@ -1016,40 +1016,331 @@ std::string generate_imei_with_checkdigit(const std::string& manufacturer, const
     return imei_number;
 }
 
+void set_sim_config(const std::string& param, const std::string& value) {
+    std::string command = "gif config -a " + param + "=" + value;
+    if (dbg) cout << command << endl;
+    execute_command(command);
+}
+
+std::string generate_imsi(const std::string& operatorCode) {
+    // 验证运营商代码的有效性，假设是三位数字，如460，46001等
+    if (operatorCode.length() < 3 || operatorCode.length() > 5) {
+        return "";  // 返回空字符串表示无效输入
+    }
+
+    // 使用高质量随机数生成器
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 9);
+
+    // IMSI 从运营商代码开始
+    std::stringstream imsiStream;
+    imsiStream << operatorCode;
+
+    // 生成9位用户标识号
+    for (int i = 0; i < 9; ++i) {
+        imsiStream << dis(gen);  // 生成一个 0-9 之间的随机数
+    }
+
+    return imsiStream.str();
+}
+
+
+int generate_gsm_rssi() {
+    srand(time(NULL));  // 使用时间作为随机种子
+
+    int signal_strength = rand() % 100;  // 随机生成一个信号强度（0-99）
+
+    int rssi = 0;
+    if (signal_strength < 20) {
+        // 强信号：-50 到 -70 dBm
+        rssi = rand() % 21 - 50;  // 随机生成 -50 到 -70 dBm
+    } else if (signal_strength < 50) {
+        // 中等信号：-70 到 -90 dBm
+        rssi = rand() % 21 - 70;  // 随机生成 -70 到 -90 dBm
+    } else if (signal_strength < 80) {
+        // 弱信号：-90 到 -100 dBm
+        rssi = rand() % 11 - 90;  // 随机生成 -90 到 -100 dBm
+    } else {
+        // 极弱信号：-100 到 -110 dBm
+        rssi = rand() % 11 - 100;  // 随机生成 -100 到 -110 dBm
+    }
+
+    return rssi;
+}
+
+std::string generate_random_esn() {
+    srand(time(NULL));  // 使用当前时间作为种子
+
+    std::stringstream esn;
+    
+    // 生成 8 或 16 个随机十六进制字符
+    for (int i = 0; i < 16; ++i) {
+        // 随机选择一个字符，可以是 '0'-'9' 或 'A'-'F'
+        int random_char = rand() % 16;  // 生成一个 0 到 15 的数字
+        esn << std::hex << std::uppercase << random_char;  // 转换为十六进制并以大写字母显示
+    }
+
+    return esn.str();
+}
+
+std::string generate_random_meid(const std::string& operator_code) {
+    srand(time(NULL));
+    std::string operator_prefix = operator_code.substr(0, 6);
+
+    std::stringstream meid;
+    
+    meid << operator_prefix;
+
+    // 生成剩余的 8 位十六进制数（4 个字节），总共 14 位
+    for (int i = 0; i < 8; ++i) {
+        int random_char = rand() % 16;  // 生成一个 0 到 15 的数字
+        meid << std::hex << std::uppercase << random_char;  // 转换为十六进制并以大写字母显示
+    }
+
+    return meid.str();
+}
+
+// 定义运营商的号码段（前缀）
+std::unordered_map<std::string, std::vector<std::string>> operator_prefixes = {
+    {"46001", {"130", "131", "132", "133", "134", "135", "136", "137", "138", "139"}}, // 中国联通
+    {"46002", {"150", "151", "152", "153", "155", "156", "157", "158", "159"}},        // 中国移动
+    {"46003", {"180", "181", "182", "183", "184", "185", "186", "187", "188", "189"}},  // 中国电信
+    {"310260", {"310", "311", "312", "313", "314"}},  // T-Mobile US
+    {"310150", {"320", "321", "322", "323"}},        // Verizon
+    {"40410", {"404", "405", "406", "407"}},         // Airtel India
+    // 可以继续扩展其他运营商的前缀
+};
+
+// 生成 MSISDN 函数，传入 operator_code
+std::string generate_random_msisdn(const std::string& operator_code) {
+    srand(time(NULL));  // 使用当前时间作为随机种子
+
+    // 查找对应运营商的号码段前缀
+    auto it = operator_prefixes.find(operator_code);
+    if (it == operator_prefixes.end()) {
+        // 如果没有找到对应的运营商代号，返回空字符串或一个错误信息
+        return "";
+    }
+
+    // 获取该运营商的前缀
+    std::vector<std::string> prefixes = it->second;
+
+    // 随机选择一个前缀
+    std::string prefix = prefixes[rand() % prefixes.size()];
+
+    // 生成 MSISDN（手机号）并拼接上 8 位数字
+    std::string msisdn = prefix;
+    for (int i = 0; i < 8; i++) {
+        msisdn += std::to_string(rand() % 10);  // 随机生成一个数字并拼接
+    }
+
+    return msisdn;
+}
+
+struct BaseStationInfo {
+    int lac;  // Location Area Code
+    int cid;  // Cell ID
+};
+
+BaseStationInfo generate_random_base_station_info() {
+    srand(time(NULL)); 
+
+    BaseStationInfo baseStation;
+
+    // 生成随机 LAC（范围 0 到 65535）
+    baseStation.lac = rand() % 65536;
+
+    // 生成随机 CID（范围 0 到 65535）
+    baseStation.cid = rand() % 65536;
+
+    return baseStation;
+}
+
+// 获取指定长度的随机数字字符串
+std::string generate_random_digits(int length) {
+    std::string result;
+    for (int i = 0; i < length; i++) {
+        result += std::to_string(rand() % 10);
+    }
+    return result;
+}
+
+// 生成 ICCID
+std::string generate_iccid(const std::string& mccmnc) {
+    // 验证 MCCMNC 的格式是否正确
+    if (mccmnc.size() < 5) {
+        std::cerr << "Invalid MCCMNC format!" << std::endl;
+        return "";
+    }
+
+    // 获取 MCC 和 MNC
+    std::string mcc = mccmnc.substr(0, 3); // MCC 为前三位
+    std::string mnc = mccmnc.substr(3, 2); // MNC 为接下来的两位
+
+    // 如果 MNC 长度为 3 则根据需要调整
+    if (mnc[1] == '0') {
+        mnc = mccmnc.substr(3, 3); // 如果 MNC 有三位，取三位
+    }
+
+    // 随机生成 10 至 13 位 SIM 卡序列号
+    int sim_serial_length = rand() % 4 + 10;  // 随机选择 10 到 13 位
+    std::string sim_serial = generate_random_digits(sim_serial_length);
+
+    // 生成完整的 ICCID
+    std::string iccid = mcc + mnc + sim_serial;
+
+    return iccid;
+}
+
+std::string generate_country_iso() {
+    // 国家及其对应的ISO 3166-1 alpha-2国家缩写
+    std::vector<std::pair<std::string, std::string>> country_iso = {
+        {"中国", "CN"},
+        // {"美国", "US"},
+        // {"英国", "GB"},
+        // {"法国", "FR"},
+        // {"德国", "DE"},
+        // {"日本", "JP"},
+        // {"印度", "IN"},
+        // {"澳大利亚", "AU"},
+        // {"巴西", "BR"},
+        // {"加拿大", "CA"},
+        // {"俄罗斯", "RU"},
+        // {"意大利", "IT"},
+        // {"西班牙", "ES"},
+        // {"墨西哥", "MX"},
+        // {"南非", "ZA"}
+        // 可以继续添加更多国家
+    };
+
+    // 随机选择一个国家缩写
+    size_t index = rand() % country_iso.size();
+    return country_iso[index].second;
+}
+
+// 随机生成运营商代号（MCC + MNC）
+std::string generate_operator_code() {
+    // 存储运营商代号（MCC + MNC）
+    std::vector<std::string> operator_codes = {
+        "46001", // 中国联通
+        "46002", // 中国移动
+        "46003", // 中国电信
+        // "310260", // 美国 T-Mobile
+        // "310260", // 美国 AT&T
+        // "40410", // 印度 Airtel
+        // "40411", // 印度 Vodafone
+        // "310150", // 美国 Verizon
+        // "20404", // 英国 Vodafone
+        // "26201", // 德国 T-Mobile
+        // "25001", // 法国 Orange
+        // "310030", // 加拿大 Bell
+        // "23430", // 英国 O2
+        // "310120", // 美国 Sprint
+        // "310240"  // 美国 U.S. Cellular
+    };
+
+    // 随机选择一个运营商代号
+    size_t index = rand() % operator_codes.size();
+    return operator_codes[index];
+}
+
+struct OperatorInfo {
+    std::string code;      // 运营商代号
+    std::string name;      // 运营商名称
+    std::string shortname; // 运营商简称
+    std::string spn;       // SPN（Service Provider Name）
+    std::string country_iso; // 国家ISO代码
+};
+
+// 函数：根据运营商代号（如46001）返回运营商信息
+OperatorInfo get_operator_info(const std::string& operator_code) {
+    // 存储运营商代号与信息的映射
+    std::unordered_map<std::string, OperatorInfo> operator_map = {
+        {"46001", {"46001", "中国联通", "CUCC", "China Unicom", "CN"}},
+        {"46002", {"46002", "中国移动", "CMCC", "China Mobile", "CN"}},
+        {"46003", {"46003", "中国电信", "CTCC", "China Telecom", "CN"}},
+        {"310260", {"310260", "T-Mobile US", "TMO", "T-Mobile", "US"}},
+        {"310150", {"310150", "Verizon", "VER", "Verizon Wireless", "US"}},
+        {"40410", {"40410", "Airtel India", "Airtel", "Airtel India", "IN"}},
+        {"40411", {"40411", "Vodafone India", "Voda", "Vodafone India", "IN"}},
+        {"310120", {"310120", "Sprint", "SPR", "Sprint", "US"}},
+        {"20404", {"20404", "Vodafone UK", "VodaUK", "Vodafone UK", "GB"}},
+        {"26201", {"26201", "T-Mobile Germany", "TMO-DE", "T-Mobile Germany", "DE"}},
+        {"25001", {"25001", "Orange France", "Orange", "Orange France", "FR"}},
+        {"310030", {"310030", "Bell Canada", "Bell", "Bell Canada", "CA"}},
+        {"23430", {"23430", "O2 UK", "O2UK", "O2 UK", "GB"}},
+        {"310240", {"310240", "U.S. Cellular", "USC", "U.S. Cellular", "US"}}
+    };
+
+    // 查找运营商代号并返回相应的运营商信息
+    auto it = operator_map.find(operator_code);
+    if (it != operator_map.end()) {
+        return it->second;  // 返回找到的运营商信息
+    } else {
+        // 如果没有找到匹配的代号，返回中国联通
+        return {"46001", "中国联通", "CUCC", "China Unicom", "CN"};
+    }
+}
+
+int generate_network_type() {
+    srand(time(NULL));
+
+    std::vector<int> network_types = {3, 13, 20};  // UMTS, LTE, 5G (NR),
+
+    int network_type = network_types[rand() % network_types.size()];
+
+    return network_type;
+}
+
 bool generate_sim_info() {
-    std::string imei1 = generate_imei_with_checkdigit(gDeviceInfo.manufacturer, gDeviceInfo.imei1);
-    std::string imei2 = generate_imei_with_checkdigit(gDeviceInfo.manufacturer, gDeviceInfo.imei2);
+    srand(time(NULL));
 
-    string command = "";
-    //imei1
-    command = "gif config -a sim.imei=\"" + imei1 + "\"";
-    if (dbg) cout << command << endl;
-    execute_command(command);
-    //imei1
-     command = "gif config -a sim.deviceid=\"" + imei1 + "\"";
-    if (dbg) cout << command << endl;
-    execute_command(command);
+    std::string operator_codes = generate_operator_code();
+    OperatorInfo operator_info = get_operator_info(operator_codes);
+    std::string imeisv = std::to_string(10 + random() % 90);
+    std::string esn = generate_random_esn();
+    BaseStationInfo baseStation = generate_random_base_station_info();
+    int rssi = generate_gsm_rssi();
 
-    //imei1
-    command = "gif config -a sim.imei1=\"" + imei1 + "\"";
-    if (dbg) cout << command << endl;
-    execute_command(command);
-    //imei1
-     command = "gif config -a sim.deviceid1=\"" + imei1 + "\"";
-    if (dbg) cout << command << endl;
-    execute_command(command);
+    std::string msisdn = generate_random_msisdn(operator_codes);
+    std::string imei = generate_imei_with_checkdigit(gDeviceInfo.manufacturer, gDeviceInfo.imei1);
+    std::string meid = generate_random_meid(operator_codes);
+    std::string iccid = generate_iccid(operator_codes);
+    std::string imsi = generate_imsi(operator_codes);
+    int network_type = generate_network_type();
 
-    //imei2
-    command = "gif config -a sim.imei2=\"" + imei2 + "\"";
-    if (dbg) cout << command << endl;
-    execute_command(command);
-    command = "gif config -a sim.deviceid2=\"" + imei2 + "\"";
-    if (dbg) cout << command << endl;
-    execute_command(command);
-
+    set_sim_config("sim.shortname", operator_info.shortname);
+    set_sim_config("sim.deviceid", imei);
+    set_sim_config("sim.imei", imei);
+    set_sim_config("sim.meid", meid);
+    set_sim_config("sim.imsi", imsi);
+    set_sim_config("sim.imeisv", imeisv);
+    set_sim_config("sim.iccid", iccid);
+    set_sim_config("sim.operator_name", operator_info.name);
+    set_sim_config("sim.operator_code", operator_info.code);		
+    set_sim_config("sim.sim_code", operator_info.code);
+    set_sim_config("sim.country_iso", operator_info.country_iso);
+    set_sim_config("sim.sim_iso", operator_info.country_iso);
+    set_sim_config("sim.hasicccard", "1");
+    set_sim_config("sim.state", "5");
+    set_sim_config("sim.datatype", std::to_string(network_type));
+    set_sim_config("sim.sn", iccid);
+    set_sim_config("sim.phonenumber", msisdn);
+    set_sim_config("sim.sid", "100");
+    set_sim_config("sim.signalStrength", std::to_string(rssi));
+    set_sim_config("sim.lac", std::to_string(baseStation.lac));
+    set_sim_config("sim.cid", std::to_string(baseStation.cid));
+    set_sim_config("sim.spn", operator_info.spn);
+    set_sim_config("sim.msisdn", msisdn);
+    set_sim_config("sim.esn", esn);
+    set_sim_config("sim.phonetype", std::to_string(network_type));
+    set_sim_config("sim.roaming", "0");
     return true;
 }
 
+//////////////////////////////////////////////////////////////////////
+//wifi begin:
 std::string generate_ssid() {
     const std::vector<std::string> vendors = {
         "TP-Link", "Netgear", "Xiaomi", "Linksys", "D-Link", "ASUS", "Belkin", 
@@ -1194,6 +1485,63 @@ int generate_link_speed() {
     return link_speed;
 }
 
+
+int generate_frequency() {
+    // 随机选择 2.4 GHz 或 5 GHz
+    return (rand() % 2 == 0) ? 2400 : 5000;  // 2400 MHz (2.4 GHz), 5000 MHz (5 GHz)
+}
+
+int generate_dhcp_lease() {
+    // 随机生成 DHCP 租赁时间，单位为秒（例如：3600秒 = 1小时）
+    return (rand() % 86400) + 3600;  // 1小时到1天之间
+}
+
+std::string generate_dns_address() {
+    // 定义常见的公共 DNS 和中国运营商 DNS
+    std::vector<std::string> dns_pool = {
+        "8.8.8.8", "8.8.4.4",         // Google DNS
+        "1.1.1.1", "1.0.0.1",         // Cloudflare DNS
+        "208.67.222.222", "208.67.220.220", // OpenDNS
+        "9.9.9.9",                    // Quad9 DNS
+        "114.114.114.114", "114.114.115.115", // 中国电信
+        "218.201.96.130",             // 中国移动
+        "202.96.128.86",              // 中国联通
+        "192.168.1.1",                // 局域网网关
+        "192.168.0.1"                 // 局域网网关
+    };
+
+    // 从 DNS 池中随机选择一个地址
+    return dns_pool[rand() % dns_pool.size()];
+}
+
+// 根据传入的 IP 地址推算 DHCP 服务器地址
+std::string generate_dhcp_server(const std::string& ip_addr) {
+    // 将 IP 地址按 '.' 分割成 4 个部分
+    std::vector<int> octets;
+    std::stringstream ss(ip_addr);
+    std::string segment;
+    while (std::getline(ss, segment, '.')) {
+        octets.push_back(std::stoi(segment));
+    }
+
+    // 如果 IP 地址不合法，返回空字符串
+    if (octets.size() != 4) {
+        return "";
+    }
+
+    // 推算 DHCP 服务器地址
+    if (octets[0] == 192 && octets[1] == 168) {
+        return "192.168." + std::to_string(octets[2]) + ".1";
+    } else if (octets[0] == 10) {
+        return "10." + std::to_string(octets[1]) + "." + std::to_string(octets[2]) + ".1";
+    } else if (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31) {
+        return "172." + std::to_string(octets[1]) + "." + std::to_string(octets[2]) + ".1";
+    } else {
+        // 对于非私有地址，默认返回 .1
+        return std::to_string(octets[0]) + "." + std::to_string(octets[1]) + ".1.1";
+    }
+}
+
 void set_wifi_config(const std::string& param, const std::string& value) {
     std::string command = "gif config -a " + param + "=" + value;
     if (dbg) cout << command << endl;
@@ -1209,6 +1557,13 @@ void generate_wifi_info() {
     std::string ip_addr = generate_ip_addr();
     int rssi = generate_rssi();
     int link_speed = generate_link_speed();
+    std::string dhcp_gateway = generate_ip_addr();
+    std::string dhcp_netmask = "255.255.255.0";
+    std::string dhcp_dns1 = generate_dns_address();
+    std::string dhcp_dns2 = generate_dns_address();
+    std::string dhcp_server = generate_dhcp_server(ip_addr);
+    int dhcp_lease = generate_dhcp_lease();
+    int frequency = generate_frequency();
 
     set_wifi_config("wifi.ssid", ssid);
     set_wifi_config("wifi.bssid", bssid);
@@ -1218,7 +1573,16 @@ void generate_wifi_info() {
     set_wifi_config("wifi.linkspeed", std::to_string(link_speed));
     set_wifi_config("wifi.enable", "1");
     set_wifi_config("wifi.enable", "true");
+
+    set_wifi_config("wifi.dhcp_gateway", dhcp_gateway);
+    set_wifi_config("wifi.dhcp_netmask", dhcp_netmask);
+    set_wifi_config("wifi.dhcp_dns1", dhcp_dns1);
+    set_wifi_config("wifi.dhcp_dns2", dhcp_dns2);
+    set_wifi_config("wifi.dhcp_server", dhcp_server);
+    set_wifi_config("wifi.dhcp_lease", std::to_string(dhcp_lease));
+    set_wifi_config("wifi.frequency", std::to_string(frequency));
 }
+
 
 std::map<std::string, std::vector<std::string>> headphone_models = {
     {"Bose", {"SoundSport", "QuietComfort", "QuietControl 30", "Bose Sport Open Earbuds"}},
