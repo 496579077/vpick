@@ -1020,16 +1020,24 @@ bool generate_sim_info() {
     std::string imei1 = generate_imei_with_checkdigit(gDeviceInfo.manufacturer, gDeviceInfo.imei1);
     std::string imei2 = generate_imei_with_checkdigit(gDeviceInfo.manufacturer, gDeviceInfo.imei2);
 
-    
+    string command = "";
     //imei1
-    string command = "gif config -a sim.imei1=\"" + imei1 + "\"";
+    command = "gif config -a sim.imei=\"" + imei1 + "\"";
+    if (dbg) cout << command << endl;
+    execute_command(command);
+    //imei1
+     command = "gif config -a sim.deviceid=\"" + imei1 + "\"";
+    if (dbg) cout << command << endl;
+    execute_command(command);
+
+    //imei1
+    command = "gif config -a sim.imei1=\"" + imei1 + "\"";
     if (dbg) cout << command << endl;
     execute_command(command);
     //imei1
      command = "gif config -a sim.deviceid1=\"" + imei1 + "\"";
     if (dbg) cout << command << endl;
     execute_command(command);
-
 
     //imei2
     command = "gif config -a sim.imei2=\"" + imei2 + "\"";
@@ -1208,6 +1216,7 @@ void generate_wifi_info() {
     set_wifi_config("wifi.ip_addr", ip_addr);
     set_wifi_config("wifi.rssi", std::to_string(rssi));
     set_wifi_config("wifi.linkspeed", std::to_string(link_speed));
+    set_wifi_config("wifi.enable", "1");
     set_wifi_config("wifi.enable", "true");
 }
 
@@ -1293,6 +1302,7 @@ void generate_bluetooth_info() {
 
     set_bluetooth_config("bt.name", name);
     set_bluetooth_config("bt.mac", mac_addr);
+    set_bluetooth_config("bt.enable", "1");
     set_bluetooth_config("bt.enable", "true");
 }
 
