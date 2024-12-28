@@ -780,6 +780,12 @@ bool restore_system_properties(const string &work_dir) {
         "persist.sys.gps.lpp",
         "ro.soc.manufacturer",
         "ro.soc.model",
+        //version.release
+        "ro.build.version.release",
+        "ro.odm.build.version.release",
+        "ro.product.build.version.release",
+        "ro.system.build.version.release",
+        "ro.vendor.build.version.release",
     };
 
     string prop_pick_path = work_dir + "/prop.pick";
@@ -1047,7 +1053,7 @@ std::string generate_imsi(const std::string& operatorCode) {
 
 
 int generate_gsm_rssi() {
-    srand(time(NULL));  // 使用时间作为随机种子
+    srand(time(NULL));
 
     int signal_strength = rand() % 100;  // 随机生成一个信号强度（0-99）
 
