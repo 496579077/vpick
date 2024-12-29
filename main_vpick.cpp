@@ -809,7 +809,7 @@ bool restore_system_properties(const string &work_dir) {
             for (const auto &prop : properties_to_restore) {
                 if (key == prop) {
                     if (!restore_property(key, value)) {
-                        return false;
+                        // return false;
                     }
                     break;
                 }
@@ -932,6 +932,114 @@ std::string generate_oaid_by_manufacturer(const std::string& manufacturer) {
     return oaid;
 }
 
+struct GPUInfo {
+    std::string vendor;
+    std::string renderer;
+    std::string version;
+};
+
+// Helper function to transform a string to lowercase
+std::string to_lowercase(const std::string &input) {
+    std::string result = input;
+    std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+    return result;
+}
+
+// Helper function to transform a string to uppercase
+std::string to_uppercase(const std::string &input) {
+    std::string result = input;
+    std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+    return result;
+}
+
+// Function to normalize brand names
+std::string normalize_brand(const std::string &brand) {
+    if (brand == "google" || brand == "Google") return "google";
+    if (brand == "honor" || brand == "HONOR") return "HONOR";
+    if (brand == "huawei" || brand == "HUAWEI") return "HUAWEI";
+    if (brand == "oppo" || brand == "OPPO") return "OPPO";
+    if (brand == "oneplus" || brand == "OnePlus") return "OnePlus";
+    if (brand == "poco" || brand == "POCO") return "POCO";
+    if (brand == "redmi" || brand == "Redmi") return "Redmi";
+    if (brand == "xiaomi" || brand == "Xiaomi") return "Xiaomi";
+    if (brand == "samsung" || brand == "Samsung") return "samsung";
+    if (brand == "vivo" || brand == "Vivo") return "vivo";
+    return brand; // Default: return as-is
+}
+
+//mc.meng
+GPUInfo generate_gpu_info(const std::string &brand, const std::string &model) {
+    if (dbg) cout << "generate_gpu_info(" << brand << "," << model << ")" << endl;
+    std::map<std::string, std::map<std::string, GPUInfo>> gpu_database = {
+        {"google", {
+            {"Pixel8a", {"ARM", "Mali-G78 MP20", "OpenGL ES 3.2 V1.2.60.0"}},
+            {"Pixel", {"Qualcomm", "Adreno (TM) 530", "OpenGL ES 3.2 V@145.0"}},
+            {"Pixel4", {"Qualcomm", "Adreno (TM) 640", "OpenGL ES 3.2 V@175.0"}}
+        }},
+        {"HONOR", {
+            {"ELZ-AN10", {"Adreno", "660", "OpenGL ES 3.2 V1.2.54.0"}},
+            {"PGT-AN00", {"Adreno", "740", "OpenGL ES 3.2 V1.2.56.0"}},
+            {"PGT-AN10", {"Adreno", "740", "OpenGL ES 3.2 V1.2.56.0"}},
+            {"OXF-AN10", {"Mali", "G76 MP16", "OpenGL ES 3.2 V1.2.47.0"}},
+            {"YAL-AL50", {"Mali", "G52 MP6", "OpenGL ES 3.2 V1.2.47.0"}}
+        }},
+        {"HUAWEI", {
+            {"NOH-AN00", {"ARM", "Mali-G78 MP24", "OpenGL ES 3.2 V1.2.72.0"}},
+            {"TNN-AN00", {"ARM", "Mali-G76 MC4", "OpenGL ES 3.2 V1.2.47.0"}},
+            {"ALN-AL10", {"ARM", "Mali-G76 MP10", "OpenGL ES 3.2 V1.2.47.0"}},
+            {"CLS-AL00", {"ARM", "Mali-G78 MP10", "OpenGL ES 3.2 V1.2.60.0"}}
+        }},
+        {"OPPO", {
+            {"PHZ110", {"ARM", "Mali-G715 MC9", "OpenGL ES 3.2 V1.2.63.0"}}
+        }},
+        {"OnePlus", {
+            {"PHB110", {"Qualcomm", "Adreno (TM) 740", "OpenGL ES 3.2 V@0676.32"}},
+            {"PJA110", {"Qualcomm", "Adreno (TM) 730", "OpenGL ES 3.2 V@0665.25"}},
+            {"PHK110", {"Qualcomm", "Adreno (TM) 740", "OpenGL ES 3.2 V@0676.32"}}
+        }},
+        {"POCO", {
+            {"POCOF2Pro", {"Qualcomm", "Adreno (TM) 650", "OpenGL ES 3.2 V@510.0"}},
+        }},
+        {"Redmi", {
+            {"RedmiNote8Pro", {"ARM", "Mali-G76 MC4", "OpenGL ES 3.2 V1.2.47.0"}},
+            {"RedmiK30Pro", {"Qualcomm", "Adreno (TM) 650", "OpenGL ES 3.2 V@450.0"}},
+            {"RedmiK30", {"Qualcomm", "Adreno (TM) 618", "OpenGL ES 3.2 V@334.0"}},
+            {"M2104K10AC", {"ARM", "Mali-G57 MC3", "OpenGL ES 3.2 V1.2.56.0"}},
+            {"22127RK46C", {"ARM", "Mali-G68 MC4", "OpenGL ES 3.2 V1.2.63.0"}}
+        }},
+        {"Xiaomi", {
+            {"Mi10", {"Qualcomm", "Adreno (TM) 650", "OpenGL ES 3.2 V@450.0"}},
+            {"M2002J9E", {"Qualcomm", "Adreno (TM) 618", "OpenGL ES 3.2 V@334.0"}},
+        }},
+        {"samsung", {
+            {"SM-A5160", {"ARM", "Mali-G72 MP3", "OpenGL ES 3.2 V1.1.30.0"}}
+        }},
+        {"vivo", {
+            {"V2001A", {"ARM", "Mali-G76 MC4", "OpenGL ES 3.2 V1.2.47.0"}},
+            {"V2232A", {"ARM", "Mali-G77 MC9", "OpenGL ES 3.2 V1.2.54.0"}}
+        }}
+    };
+
+    // GPUInfo default_gpu = {"Qualcomm", "Adreno (TM) 650", "OpenGL ES 3.2 V@450.0"};
+    GPUInfo default_gpu = {"Qualcomm", "Adreno (TM) 650", "OpenGL ES 3.2 V@450.0"};
+
+    // Normalize brand name
+    std::string normalized_brand = normalize_brand(brand);
+
+    // Remove spaces from model
+    std::string trimmed_model = model;
+    trimmed_model.erase(std::remove(trimmed_model.begin(), trimmed_model.end(), ' '), trimmed_model.end());
+    // Look for the brand and model in the database
+    if (gpu_database.find(normalized_brand) != gpu_database.end()) {
+        const auto &models = gpu_database[normalized_brand];
+        if (models.find(trimmed_model) != models.end()) {
+            return models.at(trimmed_model);
+        }
+    }
+
+    return default_gpu; // Return default GPU info if not found
+}
+
 bool generate_device_info() {
     std::string oaid = generate_oaid_by_manufacturer(gDeviceInfo.manufacturer);
 
@@ -940,6 +1048,19 @@ bool generate_device_info() {
     if (dbg) cout << command << endl;
     execute_command(command);
 
+    //gpu info:
+    GPUInfo gpu = generate_gpu_info(gDeviceInfo.brand, gDeviceInfo.model);
+    command = "gif config -a gpu.vendor=\"" + gpu.vendor + "\"";
+    if (dbg) cout << command << endl;
+    execute_command(command);
+
+    command = "gif config -a gpu.renderer=\"" + gpu.renderer + "\"";
+    if (dbg) cout << command << endl;
+    execute_command(command);
+
+    command = "gif config -a gpu.version=\"" + gpu.version + "\"";
+    if (dbg) cout << command << endl;
+    execute_command(command);
     return true;
 }
 
@@ -1578,7 +1699,6 @@ void generate_wifi_info() {
     set_wifi_config("wifi.rssi", std::to_string(rssi));
     set_wifi_config("wifi.linkspeed", std::to_string(link_speed));
     set_wifi_config("wifi.enable", "1");
-    set_wifi_config("wifi.enable", "true");
 
     set_wifi_config("wifi.dhcp_gateway", dhcp_gateway);
     set_wifi_config("wifi.dhcp_netmask", dhcp_netmask);
@@ -1673,7 +1793,6 @@ void generate_bluetooth_info() {
     set_bluetooth_config("bt.name", name);
     set_bluetooth_config("bt.mac", mac_addr);
     set_bluetooth_config("bt.enable", "1");
-    set_bluetooth_config("bt.enable", "true");
 }
 
 std::string generate_android_id() {
