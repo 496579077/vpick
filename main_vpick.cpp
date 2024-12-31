@@ -128,10 +128,22 @@ string execute_command(const string &command) {
     return result;
 }
 
-void gif_config(const std::string& param, const std::string& value) {
-    std::string command = "gif config -a " + param + "=" + value;
+bool gif_setprop(const std::string& key, const std::string& value) {
+    string command = "gif setprop " + key + " \"" + value + "\"";
+    if (dbg) cout << command << endl;
+    if (system(command.c_str()) != 0) {
+        cerr << "Failed to set property: " << key << " to " << value << endl;
+        return false;
+    }
+    return true;
+}
+  
+
+bool gif_config(const std::string& key, const std::string& value) {
+    std::string command = "gif config -a " + key + "=\"" + value + "\"";
     if (dbg) cout << command << endl;
     execute_command(command);
+    return true;
 }
 
 // Function to compute the MD5 hash of a string
@@ -611,23 +623,12 @@ bool restore_property(const string &key, const string &value) {
     }
     if (key == "ro.product.model") {
         gDeviceInfo.model = value;
-        string command = "gif config -a device.model=\"" + value + "\""; 
-        if (dbg) cout << command << endl;
-        if (system(command.c_str()) != 0) {
-            cerr << "Failed to set device.model to " << value << endl;
-            return false;
-        }
-        return true;
+        return gif_config("device.model", value);
     }
 
     if (key == "ro.serialno") {
-        string new_serialno = generate_new_serialno(value);  // 生成新的序列号
-        string command = "gif config -a device.serialno=\"" + new_serialno + "\""; 
-        if (system(command.c_str()) != 0) {
-            cerr << "Failed to set device.serialno to " << new_serialno << endl;
-            return false;
-        }
-        return true;
+        string serialno = generate_new_serialno(value);
+        return gif_config("device.serialno", serialno);
     }
 
     if ( key == "ro.ril.oem.imei1" || key == "persist.sim.imei1") {
@@ -639,15 +640,7 @@ bool restore_property(const string &key, const string &value) {
         return true;
     }
 
-    // 对其他属性执行 gif setprop 命令
-    string command = "gif setprop " + final_key + " \"" + value + "\"";
-    if (dbg) cout << command << endl;
-    if (system(command.c_str()) != 0) {
-        cerr << "Failed to set property: " << final_key << " to " << value << endl;
-        return false;
-    }
-
-    return true;
+    return gif_setprop(final_key, value);
 }
 
 bool restore_system_properties(const string &work_dir) {
@@ -1043,24 +1036,15 @@ GPUInfo generate_gpu_info(const std::string &brand, const std::string &model) {
 bool generate_device_info() {
     std::string oaid = generate_oaid_by_manufacturer(gDeviceInfo.manufacturer);
 
-    //oaid    
-    string command = "gif config -a device.oaid=\"" + oaid + "\"";
-    if (dbg) cout << command << endl;
-    execute_command(command);
+    //oaid
+    gif_config("device.oaid", oaid);
 
     //gpu info:
     GPUInfo gpu = generate_gpu_info(gDeviceInfo.brand, gDeviceInfo.model);
-    command = "gif config -a gpu.vendor=\"" + gpu.vendor + "\"";
-    if (dbg) cout << command << endl;
-    execute_command(command);
+    gif_config("gpu.vendor", gpu.vendor);
+    gif_config("gpu.renderer", gpu.renderer);
+    gif_config("gpu.version", gpu.version);
 
-    command = "gif config -a gpu.renderer=\"" + gpu.renderer + "\"";
-    if (dbg) cout << command << endl;
-    execute_command(command);
-
-    command = "gif config -a gpu.version=\"" + gpu.version + "\"";
-    if (dbg) cout << command << endl;
-    execute_command(command);
     return true;
 }
 
@@ -1141,12 +1125,6 @@ std::string generate_imei_with_checkdigit(const std::string& manufacturer, const
     imei_number += std::to_string(checkdigit);
 
     return imei_number;
-}
-
-void set_sim_config(const std::string& param, const std::string& value) {
-    std::string command = "gif config -a " + param + "=" + value;
-    if (dbg) cout << command << endl;
-    execute_command(command);
 }
 
 std::string generate_imsi(const std::string& operatorCode) {
@@ -1437,32 +1415,32 @@ bool generate_sim_info() {
     std::string imsi = generate_imsi(operator_codes);
     int network_type = generate_network_type();
 
-    set_sim_config("sim.shortname", operator_info.shortname);
-    set_sim_config("sim.deviceid", imei);
-    set_sim_config("sim.imei", imei);
-    set_sim_config("sim.meid", meid);
-    set_sim_config("sim.imsi", imsi);
-    set_sim_config("sim.imeisv", imeisv);
-    set_sim_config("sim.iccid", iccid);
-    set_sim_config("sim.operator_name", operator_info.name);
-    set_sim_config("sim.operator_code", operator_info.code);		
-    set_sim_config("sim.sim_code", operator_info.code);
-    set_sim_config("sim.country_iso", operator_info.country_iso);
-    set_sim_config("sim.sim_iso", operator_info.country_iso);
-    set_sim_config("sim.hasicccard", "1");
-    set_sim_config("sim.state", "5");
-    set_sim_config("sim.datatype", std::to_string(network_type));
-    set_sim_config("sim.sn", iccid);
-    set_sim_config("sim.phonenumber", msisdn);
-    set_sim_config("sim.sid", "100");
-    set_sim_config("sim.signalStrength", std::to_string(rssi));
-    set_sim_config("sim.lac", std::to_string(baseStation.lac));
-    set_sim_config("sim.cid", std::to_string(baseStation.cid));
-    set_sim_config("sim.spn", operator_info.spn);
-    set_sim_config("sim.msisdn", msisdn);
-    set_sim_config("sim.esn", esn);
-    set_sim_config("sim.phonetype", std::to_string(network_type));
-    set_sim_config("sim.roaming", "0");
+    gif_config("sim.shortname", operator_info.shortname);
+    gif_config("sim.deviceid", imei);
+    gif_config("sim.imei", imei);
+    gif_config("sim.meid", meid);
+    gif_config("sim.imsi", imsi);
+    gif_config("sim.imeisv", imeisv);
+    gif_config("sim.iccid", iccid);
+    gif_config("sim.operator_name", operator_info.name);
+    gif_config("sim.operator_code", operator_info.code);		
+    gif_config("sim.sim_code", operator_info.code);
+    gif_config("sim.country_iso", operator_info.country_iso);
+    gif_config("sim.sim_iso", operator_info.country_iso);
+    gif_config("sim.hasicccard", "1");
+    gif_config("sim.state", "5");
+    gif_config("sim.datatype", std::to_string(network_type));
+    gif_config("sim.sn", iccid);
+    gif_config("sim.phonenumber", msisdn);
+    gif_config("sim.sid", "100");
+    gif_config("sim.signalStrength", std::to_string(rssi));
+    gif_config("sim.lac", std::to_string(baseStation.lac));
+    gif_config("sim.cid", std::to_string(baseStation.cid));
+    gif_config("sim.spn", operator_info.spn);
+    gif_config("sim.msisdn", msisdn);
+    gif_config("sim.esn", esn);
+    gif_config("sim.phonetype", std::to_string(network_type));
+    gif_config("sim.roaming", "0");
     return true;
 }
 
@@ -1669,12 +1647,6 @@ std::string generate_dhcp_server(const std::string& ip_addr) {
     }
 }
 
-void set_wifi_config(const std::string& param, const std::string& value) {
-    std::string command = "gif config -a " + param + "=" + value;
-    if (dbg) cout << command << endl;
-    execute_command(command);
-}
-
 void generate_wifi_info() {
     srand(time(NULL));
 
@@ -1692,21 +1664,21 @@ void generate_wifi_info() {
     int dhcp_lease = generate_dhcp_lease();
     int frequency = generate_frequency();
 
-    set_wifi_config("wifi.ssid", ssid);
-    set_wifi_config("wifi.bssid", bssid);
-    set_wifi_config("wifi.mac_addr", mac_addr);
-    set_wifi_config("wifi.ip_addr", ip_addr);
-    set_wifi_config("wifi.rssi", std::to_string(rssi));
-    set_wifi_config("wifi.linkspeed", std::to_string(link_speed));
-    set_wifi_config("wifi.enable", "1");
+    gif_config("wifi.ssid", ssid);
+    gif_config("wifi.bssid", bssid);
+    gif_config("wifi.mac_addr", mac_addr);
+    gif_config("wifi.ip_addr", ip_addr);
+    gif_config("wifi.rssi", std::to_string(rssi));
+    gif_config("wifi.linkspeed", std::to_string(link_speed));
+    gif_config("wifi.enable", "1");
 
-    set_wifi_config("wifi.dhcp_gateway", dhcp_gateway);
-    set_wifi_config("wifi.dhcp_netmask", dhcp_netmask);
-    set_wifi_config("wifi.dhcp_dns1", dhcp_dns1);
-    set_wifi_config("wifi.dhcp_dns2", dhcp_dns2);
-    set_wifi_config("wifi.dhcp_server", dhcp_server);
-    set_wifi_config("wifi.dhcp_lease", std::to_string(dhcp_lease));
-    set_wifi_config("wifi.frequency", std::to_string(frequency));
+    gif_config("wifi.dhcp_gateway", dhcp_gateway);
+    gif_config("wifi.dhcp_netmask", dhcp_netmask);
+    gif_config("wifi.dhcp_dns1", dhcp_dns1);
+    gif_config("wifi.dhcp_dns2", dhcp_dns2);
+    gif_config("wifi.dhcp_server", dhcp_server);
+    gif_config("wifi.dhcp_lease", std::to_string(dhcp_lease));
+    gif_config("wifi.frequency", std::to_string(frequency));
 }
 
 
@@ -1773,12 +1745,6 @@ std::string generate_bt_mac(const std::string& bluetooth_name) {
     return oss.str();
 }
 
-void set_bluetooth_config(const std::string& param, const std::string& value) {
-    std::string command = "gif config -a " + param + "=" + value;
-    if (dbg) cout << command << endl;
-    execute_command(command);
-}
-
 void generate_bluetooth_info() {
     srand(static_cast<unsigned int>(time(0)));
 
@@ -1790,9 +1756,9 @@ void generate_bluetooth_info() {
         return;
     }
 
-    set_bluetooth_config("bt.name", name);
-    set_bluetooth_config("bt.mac", mac_addr);
-    set_bluetooth_config("bt.enable", "1");
+    gif_config("bt.name", name);
+    gif_config("bt.mac", mac_addr);
+    gif_config("bt.enable", "1");
 }
 
 std::string generate_android_id() {
