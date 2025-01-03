@@ -1,7 +1,8 @@
 #define LOG_TAG "VpkdService"
 #include "service/VpkdService.h"
 #include <array>
-
+#include <log/log.h>
+#include <android-base/logging.h>
 #include <binder/IResultReceiver.h>
 #include <binder/IShellCallback.h>
 #include <binder/TextOutput.h>
@@ -78,8 +79,25 @@ status_t VpkdService::shellCommand(int in, int out, int err, std::vector<std::st
     if (args[0] == "brand-changed") {
         return onBrandChanged(out);
     }
+
     if (args[0] == "model-changed") {
         return onModelChanged(out);
+    }
+
+    if (args[0] == "setprop") {
+        if (args.size() < 3) {
+            dprintf(err, "setprop requires two arguments: key and value\n");
+            return BAD_VALUE;
+        }
+        return setprop(out, args[1], args[2]);
+    }
+
+    if (args[0] == "getprop") {
+        if (args.size() < 2) {
+            dprintf(err, "getprop requires one argument: key\n");
+            return BAD_VALUE;
+        }
+        return getprop(out, args[1]);
     }
 
     printUsage(err);
@@ -87,7 +105,7 @@ status_t VpkdService::shellCommand(int in, int out, int err, std::vector<std::st
 }
 
 status_t VpkdService::hello(int out) {
-    dprintf(out, "hello\n");
+    dprintf(out, "hi\n");
     return NO_ERROR;
 }
 
@@ -102,8 +120,29 @@ status_t VpkdService::onBrandChanged(int out) {
     mOnekeyNewDeviceThread.onBrandChanged();
     return NO_ERROR;
 }
+
 status_t VpkdService::onModelChanged(int out) {
     mOnekeyNewDeviceThread.onModelChanged();
+    return NO_ERROR;
+}
+
+status_t VpkdService::setprop(int out, std::string &key, std::string &value) {
+    std::string gifKey = key.c_str();
+	if (gifKey.find("ro.") == 0) {
+		gifKey = "gif." + gifKey;
+	}
+    //ALOGD("setSystemProperties key = %s , value = %s", gifKey.c_str(), value.c_str());
+	ssize_t result = property_set(gifKey.c_str(), value.c_str());
+	if (result < 0) {
+		return -1;
+	}
+    return NO_ERROR;
+}
+
+status_t VpkdService::getprop(int out, std::string &key) {
+    char prop_value[PROPERTY_VALUE_MAX];
+    property_get(key.c_str(), prop_value, "");
+    dprintf(out, "%s\n", prop_value);
     return NO_ERROR;
 }
 
@@ -187,9 +226,18 @@ void VpkdService::VpkdService::OnekeyNewDeviceThread::maybeUpdateDeviceInfo() {
         mModel = newModel;
         mModelChanged = false;
     }
-    std::string cammand = "vpick -r --brand " + mBrand  + " --model " + mModel;
+    
+    std::string cammand = "";
+    std::string ret = "";
+    cammand = "vpick -r --brand " + mBrand  + " --model " + mModel + " --setprop-cmd \"gifsetprop\"";
     ALOGI("%s", cammand.c_str());
-    std::string ret= execute_command(cammand, false);
+    ret= execute_command(cammand, false);
+    ALOGI("finished: %s", ret.c_str());
+
+    //
+    cammand = "vpick -r --brand " + mBrand  + " --model " + mModel;
+    ALOGI("%s", cammand.c_str());
+    ret= execute_command(cammand, false);
     ALOGI("finished: %s", ret.c_str());
     // Reset states
 
@@ -198,7 +246,7 @@ void VpkdService::VpkdService::OnekeyNewDeviceThread::maybeUpdateDeviceInfo() {
 }
 
 bool VpkdService::VpkdService::OnekeyNewDeviceThread::threadLoop() {
-    struct timespec wait_time = {5, 0};
+    struct timespec wait_time = {1, 0};
     // int cnt = 0;
     bool delayProcess = false;
     while (!exitPending()) {

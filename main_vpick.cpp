@@ -67,6 +67,8 @@ struct OpstionsType {
     string output;
     bool withkey;
     string key;
+    bool withSetpropCmd;
+    string setpropCmd;
 };
 
 OpstionsType gOpstions = {
@@ -128,8 +130,14 @@ string execute_command(const string &command) {
     return result;
 }
 
+
 bool gif_setprop(const std::string& key, const std::string& value) {
-    string command = "gif setprop " + key + " \"" + value + "\"";
+    std::string setprop_cmd = "gif setprop";
+    if (gOpstions.withSetpropCmd == true) {
+        setprop_cmd = gOpstions.setpropCmd;
+    }
+
+    string command = setprop_cmd + " " + key + " \"" + value + "\"";
     if (dbg) cout << command << endl;
     if (system(command.c_str()) != 0) {
         cerr << "Failed to set property: " << key << " to " << value << endl;
@@ -137,12 +145,83 @@ bool gif_setprop(const std::string& key, const std::string& value) {
     }
     return true;
 }
-  
+
+// 全局常量映射表
+const std::map<std::string, std::string> config_prop_map = {
+    {"device.model",      "ro.product.model"},
+    {"device.serialno",   "ro.serialno"},
+    {"device.oaid",       "persist.oaid"},
+    {"gpu.vendor",        "persist.gpu.vendor"},
+    {"gpu.renderer",      "persist.gpu.renderer"},
+    {"gpu.version",       "persist.gpu.version"},
+    {"sim.shortname",     "persist.sim.shortname"},
+    {"sim.deviceid",      "persist.sim.deviceid"},
+    {"sim.imei",          "persist.sim.imei"},
+    {"sim.meid",          "persist.sim.meid"},
+    {"sim.imsi",          "persist.sim.imsi"},
+    {"sim.imeisv",        "persist.sim.imeisv"},
+    {"sim.iccid",         "persist.sim.iccid"},
+    {"sim.operator_name", "persist.sim.operator_name"},
+    {"sim.operator_code", "persist.sim.operator_code"},
+    {"sim.sim_code",      "persist.sim.sim_code"},
+    {"sim.country_iso",   "persist.sim.country_iso"},
+    {"sim.sim_iso",       "persist.sim.sim_iso"},
+    {"sim.hasicccard",    "persist.sim.hasicccard"},
+    {"sim.state",         "persist.sim.state"},
+    {"sim.datatype",      "persist.sim.datatype"},
+    {"sim.sn",            "persist.sim.sn"},
+    {"sim.phonenumber",   "persist.sim.phonenumber"},
+    {"sim.sid",           "persist.sim.sid"},
+    {"sim.signalStrength","persist.sim.signalStrength"},
+    {"sim.lac",           "persist.sim.lac"},
+    {"sim.cid",           "persist.sim.cid"},
+    {"sim.spn",           "persist.sim.spn"},
+    {"sim.msisdn",        "persist.sim.msisdn"},
+    {"sim.esn",           "persist.sim.esn"},
+    {"sim.phonetype",     "persist.sim.phonetype"},
+    {"sim.roaming",       "persist.sim.roaming"},
+    {"wifi.ssid",         "persist.wifi.ssid"},
+    {"wifi.bssid",        "persist.wifi.bssid"},
+    {"wifi.mac_addr",     "persist.wifi.mac_addr"},
+    {"wifi.ip_addr",      "persist.wifi.ip_addr"},
+    {"wifi.rssi",         "persist.wifi.rssi"},
+    {"wifi.linkspeed",    "persist.wifi.linkspeed"},
+    {"wifi.enable",       "persist.wifi.enable"},
+    {"wifi.dhcp_gateway", "persist.wifi.dhcp_gateway"},
+    {"wifi.dhcp_netmask", "persist.wifi.netmask"},
+    {"wifi.dhcp_dns1",    "persist.wifi.dns1"},
+    {"wifi.dhcp_dns2",    "persist.wifi.dns2"},
+    {"wifi.dhcp_server",  "persist.wifi.server"},
+    {"wifi.dhcp_lease",   "persist.wifi.lease"},
+    {"wifi.frequency",    "persist.wifi.frequency"},
+    {"bt.name",           "persist.bt.name"},
+    {"bt.mac",            "persist.bt.mac"},
+    {"bt.enable",         "persist.bt.enable"},
+    {"misc.android_id",   "persist.sys.android_id"},
+};
+
+std::string get_propkey_from_config(const std::string& key) {
+    auto it = config_prop_map.find(key);
+    if (it != config_prop_map.end()) {
+        return it->second; // 如果找到键，返回对应值
+    }
+    return ""; // 如果未找到，返回空字符串
+}
 
 bool gif_config(const std::string& key, const std::string& value) {
+    std::string prop_key = get_propkey_from_config(key);
+    if (prop_key != "") {
+        return gif_setprop(prop_key, value);
+    }
     std::string command = "gif config -a " + key + "=\"" + value + "\"";
     if (dbg) cout << command << endl;
     execute_command(command);
+
+    // if (key == "device.model") {
+    //     command = "settings put global device_name \"" + value + "\"";
+    //     if (dbg) cout << command << endl;
+    //     execute_command(command);
+    // }
     return true;
 }
 
@@ -623,7 +702,10 @@ bool restore_property(const string &key, const string &value) {
     }
     if (key == "ro.product.model") {
         gDeviceInfo.model = value;
-        return gif_config("device.model", value);
+        std::string command = "settings put global device_name \"" + value + "\"";
+        if (dbg) cout << command << endl;
+        execute_command(command);
+        //return gif_config("device.model", value);
     }
 
     if (key == "ro.serialno") {
@@ -1955,6 +2037,7 @@ bool select_backup_and_restore(const string &brand, const string &model) {
 }
 
 void restore_main() {
+    auto start_time = std::chrono::high_resolution_clock::now();
     if (gOpstions.withIndex) {
         if (dbg) cout << "Restoring backup with index: " << gOpstions.index << endl;
         if (gOpstions.index <= 0) {
@@ -1984,6 +2067,9 @@ void restore_main() {
     generate_wifi_info();
     generate_bluetooth_info();
     generate_misc_info();
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
+    if (dbg) std::cout << "execution time: " << duration.count() << "s" << std::endl;
     cout << "Success" << endl;
 }
 
@@ -2142,6 +2228,8 @@ void print_help() {
     if (dbg) cout << "  -o, --output <file>   Specify the output file for encryption/decryption." << endl;
     if (dbg) cout << "  --dbg, --debug        Enable debug mode to show detailed logs." << endl;
     if (dbg) cout << "  --kc, --keepcache     Keep cache files after restore." << endl;
+    if (dbg) cout << "  --setprop-cmd <setprop-cmd>     indicate how to setprop" << endl;
+    
 
     cout << "\nExamples:" << endl;
     cout << "  vpick -v" << endl;
@@ -2205,6 +2293,15 @@ void process_options(int argc, char* argv[], int& i) {
             gOpstions.propOnly = true;
         } else if (option == "--feature-only") {
             gOpstions.featureOnly = true;
+        } else if (option == "--setprop-cmd") {
+            if (i + 1 < argc) {
+                gOpstions.withSetpropCmd = true;
+                gOpstions.setpropCmd = argv[++i];
+            } else {
+                cerr << "Error: --setprop-cmd requires a value." << endl;
+                print_help();
+                exit(1);
+            }
         } else {
             cerr << "Unknown option: " << option << endl;
             print_help();

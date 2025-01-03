@@ -25,6 +25,8 @@ private:
     android::status_t printUsage(int out);
     android::status_t onBrandChanged(int out);
     android::status_t onModelChanged(int out);
+    android::status_t setprop(int out, std::string &key, std::string &value);
+    android::status_t getprop(int out, std::string &key);
 
 class OnekeyNewDeviceThread : public android::Thread {
     public:
