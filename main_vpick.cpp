@@ -820,6 +820,10 @@ bool restore_system_properties(const string &work_dir) {
         "ro.product.vendor.model",
         "ro.product.name",
         "ro.product.first_api_level",
+        "ro.product.odm.name",
+        "ro.product.product.name",
+        "ro.product.system.name",
+        "ro.product.vendor.name",
         //
         "ro.board.platform",
         "ro.product.board",
