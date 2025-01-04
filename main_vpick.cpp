@@ -2072,8 +2072,8 @@ void restore_main() {
     generate_bluetooth_info();
     generate_misc_info();
     auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
-    if (dbg) std::cout << "execution time: " << duration.count() << "s" << std::endl;
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+    if (dbg) std::cout << "execution time: " << duration.count()/1000.0 << "s" << std::endl;
     cout << "Success" << endl;
 }
 
