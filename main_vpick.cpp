@@ -1051,25 +1051,25 @@ GPUInfo generate_gpu_info(const std::string &brand, const std::string &model) {
     if (dbg) cout << "generate_gpu_info(" << brand << "," << model << ")" << endl;
     std::map<std::string, std::map<std::string, GPUInfo>> gpu_database = {
         {"google", {
-            {"Pixel8a", {"ARM", "Mali-G78 MP20", "OpenGL ES 3.2 V1.2.60.0"}},
+            {"Pixel8a", {"ARM", "Arm Mali-G715", "OpenGL ES 3.2 V1.2.60.0"}},
             {"Pixel", {"Qualcomm", "Adreno (TM) 530", "OpenGL ES 3.2 V@145.0"}},
             {"Pixel4", {"Qualcomm", "Adreno (TM) 640", "OpenGL ES 3.2 V@175.0"}}
         }},
         {"HONOR", {
-            {"ELZ-AN10", {"Adreno", "660", "OpenGL ES 3.2 V1.2.54.0"}},
-            {"PGT-AN00", {"Adreno", "740", "OpenGL ES 3.2 V1.2.56.0"}},
-            {"PGT-AN10", {"Adreno", "740", "OpenGL ES 3.2 V1.2.56.0"}},
-            {"OXF-AN10", {"Mali", "G76 MP16", "OpenGL ES 3.2 V1.2.47.0"}},
-            {"YAL-AL50", {"Mali", "G52 MP6", "OpenGL ES 3.2 V1.2.47.0"}}
+            {"ELZ-AN10", {"Qualcomm", "Adreno (TM) 660", "OpenGL ES 3.2 V1.2.54.0"}},
+            {"PGT-AN00", {"Qualcomm", "Adreno (TM) 740", "OpenGL ES 3.2 V1.2.56.0"}},
+            {"PGT-AN10", {"Qualcomm", "Adreno (TM) 740", "OpenGL ES 3.2 V1.2.56.0"}},
+            {"OXF-AN10", {"ARM", "Mali - G76", "OpenGL ES 3.2 V1.2.47.0"}},
+            {"YAL-AL50", {"ARM", "G52 MP6", "OpenGL ES 3.2 V1.2.47.0"}}
         }},
         {"HUAWEI", {
             {"NOH-AN00", {"ARM", "Mali-G78 MP24", "OpenGL ES 3.2 V1.2.72.0"}},
-            {"TNN-AN00", {"ARM", "Mali-G76 MC4", "OpenGL ES 3.2 V1.2.47.0"}},
-            {"ALN-AL10", {"ARM", "Mali-G76 MP10", "OpenGL ES 3.2 V1.2.47.0"}},
-            {"CLS-AL00", {"ARM", "Mali-G78 MP10", "OpenGL ES 3.2 V1.2.60.0"}}
+            {"TNN-AN00", {"MediaTek", "Mali - G77 MC4", "OpenGL ES 3.2 V1.2.47.0"}},
+            {"ALN-AL10", {"ARM", "Mali - G57", "OpenGL ES 3.2 V1.2.47.0"}},
+            {"CLS-AL00", {"ARM", "Mali - G57", "OpenGL ES 3.2 V1.2.60.0"}}
         }},
         {"OPPO", {
-            {"PHZ110", {"ARM", "Mali-G715 MC9", "OpenGL ES 3.2 V1.2.63.0"}}
+            {"PHZ110", {"MediaTek", "Immortalis-G720 MC10", "OpenGL ES 3.2 V1.2.63.0"}}
         }},
         {"OnePlus", {
             {"PHB110", {"Qualcomm", "Adreno (TM) 740", "OpenGL ES 3.2 V@0676.32"}},
@@ -1084,18 +1084,18 @@ GPUInfo generate_gpu_info(const std::string &brand, const std::string &model) {
             {"RedmiK30Pro", {"Qualcomm", "Adreno (TM) 650", "OpenGL ES 3.2 V@450.0"}},
             {"RedmiK30", {"Qualcomm", "Adreno (TM) 618", "OpenGL ES 3.2 V@334.0"}},
             {"M2104K10AC", {"ARM", "Mali-G57 MC3", "OpenGL ES 3.2 V1.2.56.0"}},
-            {"22127RK46C", {"ARM", "Mali-G68 MC4", "OpenGL ES 3.2 V1.2.63.0"}}
+            {"22127RK46C", {"ARM", "Adreno (TM) 650", "OpenGL ES 3.2 V1.2.63.0"}}
         }},
         {"Xiaomi", {
             {"Mi10", {"Qualcomm", "Adreno (TM) 650", "OpenGL ES 3.2 V@450.0"}},
-            {"M2002J9E", {"Qualcomm", "Adreno (TM) 618", "OpenGL ES 3.2 V@334.0"}},
+            {"M2002J9E", {"Qualcomm", "Adreno (TM) 620", "OpenGL ES 3.2 V@334.0"}},
         }},
         {"samsung", {
-            {"SM-A5160", {"ARM", "Mali-G72 MP3", "OpenGL ES 3.2 V1.1.30.0"}}
+            {"SM-A5160", {"ARM", "Mali - G76 MP5", "OpenGL ES 3.2 V1.1.30.0"}}
         }},
         {"vivo", {
-            {"V2001A", {"ARM", "Mali-G76 MC4", "OpenGL ES 3.2 V1.2.47.0"}},
-            {"V2232A", {"ARM", "Mali-G77 MC9", "OpenGL ES 3.2 V1.2.54.0"}}
+            {"V2001A", {"ARM", "Adreno (TM) 620", "OpenGL ES 3.2 V1.2.47.0"}},
+            {"V2232A", {"ARM", "Adreno (TM) 730", "OpenGL ES 3.2 V1.2.54.0"}}
         }}
     };
 
