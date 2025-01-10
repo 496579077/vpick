@@ -32,12 +32,20 @@ bool dbg = false;
 bool keepcache = false;
 
 
+struct GPUInfo {
+    std::string vendor;
+    std::string renderer;
+    std::string version;
+};
+
 struct DeviceInfo {
     string manufacturer;
     string brand;
     string model;
     string imei1;
     string imei2;
+    bool withGpu;
+    GPUInfo gpu;
 };
 
 DeviceInfo gDeviceInfo = {
@@ -46,6 +54,12 @@ DeviceInfo gDeviceInfo = {
     .brand = "",
     .imei1 = "",
     .imei2 = "",
+    .withGpu = false,
+    .gpu = {
+        .vendor = "",
+        .renderer = "",
+        .version = "",
+    },
 };
 
 struct OpstionsType {
@@ -296,7 +310,7 @@ string extract_system_properties_and_save() {
 }
 
 // Function to extract system files
-bool extract_system_files(const string &work_dir) {
+bool backup_system_files(const string &work_dir) {
     const vector<string> files_to_extract = {
         "/proc/meminfo",
         "/proc/cpuinfo",
@@ -305,11 +319,11 @@ bool extract_system_files(const string &work_dir) {
         "/sys/devices/system/cpu/possible",
         "/sys/devices/system/cpu/present",
         "/proc/version",
-        "/proc/sys/kernel/random/boot_id",
         "/proc/self/smaps",
         "/proc/self/maps",
         "/proc/self/attr/prev"
     };
+
 
     for (const string &file : files_to_extract) {
         // Determine the full path for the output file
@@ -343,7 +357,7 @@ bool extract_system_files(const string &work_dir) {
 }
 
 // Function to format and save properties
-void format_and_save_properties(const string &work_dir) {
+void backup_system_prop(const string &work_dir) {
     // Open the prop.org file
     string prop_org_path = work_dir + "/prop.org";
     ifstream prop_file(prop_org_path);
@@ -429,6 +443,114 @@ bool backup_pm_list_features(const string &work_dir) {
 }
 
 
+// 解析 GPU 信息
+GPUInfo parse_gpu_info(const std::string &output) {
+    GPUInfo info;
+
+    // 定位 "GLES:" 并提取相关内容
+    std::size_t pos = output.find("GLES:");
+    if (pos == std::string::npos) {
+        std::cerr << "Error: No GLES information found in output." << std::endl;
+        return info;
+    }
+
+    // 提取 "GLES:" 后的部分
+    std::string gles_info = output.substr(pos + 5); // 跳过 "GLES: "
+    std::istringstream stream(gles_info);
+
+    // 按逗号分割
+    std::vector<std::string> parts;
+    std::string part;
+    while (std::getline(stream, part, ',')) {
+        parts.push_back(part);
+    }
+
+    // 提取信息
+    if (parts.size() >= 3) {
+        info.vendor = parts[0];    // 供应商
+        info.renderer = parts[1]; // 渲染器
+
+        // 拼接版本信息（从第 3 个部分开始拼接后续所有内容）
+        info.version = parts[2];
+        for (size_t i = 3; i < parts.size(); ++i) {
+            info.version += "," + parts[i];
+        }
+    }
+
+    // 去除多余空格
+    auto trim = [](std::string &s) {
+        s.erase(0, s.find_first_not_of(" \t"));
+        s.erase(s.find_last_not_of(" \t") + 1);
+    };
+    trim(info.vendor);
+    trim(info.renderer);
+    trim(info.version);
+
+    return info;
+}
+
+// 备份 GPU 信息到文件
+bool backup_gpu_info(const std::string &work_dir) {
+    string file_path = work_dir + "/gpu_info";
+    // 获取命令输出
+    std::string output = execute_command("dumpsys SurfaceFlinger | grep GLES");
+    if (output.empty()) {
+        std::cerr << "Error: Failed to retrieve GPU information for backup." << std::endl;
+        return false;
+    }
+
+    // 保存到文件
+    std::ofstream file(file_path);
+    if (!file.is_open()) {
+        std::cerr << "Error: Failed to open file for backup: " << file_path << std::endl;
+        return false;
+    }
+
+    file << output;
+    file.close();
+
+    std::cout << "save GPU info to " << file_path << std::endl;
+    return true;
+}
+
+// 恢复 GPU 信息并解析
+bool restore_gpu_info(const std::string &work_dir) {
+    string file_path = work_dir + "/gpu_info";
+    // 打开文件读取内容
+    std::ifstream file(file_path);
+    if (!file.is_open()) {
+        if (dbg) std::cerr << "Error: Failed to open file for restore: " << file_path << std::endl;
+        return false;
+    }
+
+    std::string line, content;
+    while (std::getline(file, line)) {
+        cout << line << endl;
+        content += line;
+    }
+    file.close();
+
+    if (content.empty()) {
+        std::cerr << "Error: No GPU information found in backup file." << std::endl;
+        return false;
+    }
+
+    // 解析 GPU 信息
+    GPUInfo gpu_info = parse_gpu_info(content);
+    if (gpu_info.vendor.empty() || gpu_info.renderer.empty() || gpu_info.version.empty()) {
+        std::cerr << "Error: Failed to parse GPU information." << std::endl;
+        return false;
+    }
+
+    gDeviceInfo.withGpu = true;
+    gDeviceInfo.gpu.vendor = gpu_info.vendor;
+    gDeviceInfo.gpu.renderer = gpu_info.renderer;
+    gDeviceInfo.gpu.version = gpu_info.version;
+
+    return true;
+}
+
+
 int delete_directory(const std::string& path) {
     // Check if directory exists
     struct stat st;
@@ -493,9 +615,14 @@ bool backup_to_tar(const string &work_dir) {
     std::string command = "tar -czf " + filename + " -C " + WORK_DIR + " " + work_dir.substr(strlen(WORK_DIR));
     if (dbg) cout << command << endl;
     execute_command(command);
+    sync();
     //encrypt
     std::string tmpname = work_dir + ".tar.gz.enc";
+    encrypt_set_dbg(dbg);
     encrypt_gzip_file(filename, tmpname, gOpstions.key);
+    // command = "/data/local/tmp/vpick encrypt -i "  + filename + " -o " + tmpname;
+    // if (dbg) cout << command << endl;
+    // execute_command(command);
     //remove tar.gz
     command = "rm -fr "  + filename;
     if (dbg) cout << command << endl;
@@ -539,6 +666,7 @@ bool extract_tar(const string &tar_file, const string &destination) {
         if (dbg) cout << command << endl;
         execute_command(command);
         //decrypt
+        encrypt_set_dbg(dbg);
         decrypt_gzip_file(file_encrypted, file_deccrypted, gOpstions.key);
         //remove tar.gz
         command = "rm -fr "  + file_encrypted;
@@ -574,15 +702,11 @@ void backup_main() {
         return;
     }
 
-    // Extract system files and save them
-    if (!extract_system_files(work_dir)) {
-        cerr << "Failed to extract system files" << endl;
-        return;
-    }
-
-    // Format and save properties to prop.pick
-    format_and_save_properties(work_dir);
+    backup_version(work_dir);
+    backup_system_files(work_dir);
+    backup_system_prop(work_dir);
     backup_pm_list_features(work_dir);
+    backup_gpu_info(work_dir);
     backup_to_tar(work_dir);
     if (!keepcache) delete_directory(work_dir);
     cout << "Success" << endl;
@@ -1011,12 +1135,6 @@ std::string generate_oaid_by_manufacturer(const std::string& manufacturer) {
     return oaid;
 }
 
-struct GPUInfo {
-    std::string vendor;
-    std::string renderer;
-    std::string version;
-};
-
 // Helper function to transform a string to lowercase
 std::string to_lowercase(const std::string &input) {
     std::string result = input;
@@ -1126,11 +1244,16 @@ bool generate_device_info() {
     gif_config("device.oaid", oaid);
 
     //gpu info:
-    GPUInfo gpu = generate_gpu_info(gDeviceInfo.brand, gDeviceInfo.model);
-    gif_config("gpu.vendor", gpu.vendor);
-    gif_config("gpu.renderer", gpu.renderer);
-    gif_config("gpu.version", gpu.version);
-
+    if (gDeviceInfo.withGpu) {
+        gif_config("gpu.vendor", gDeviceInfo.gpu.vendor);
+        gif_config("gpu.renderer", gDeviceInfo.gpu.renderer);
+        gif_config("gpu.version", gDeviceInfo.gpu.version);
+    } else {
+        GPUInfo gpu = generate_gpu_info(gDeviceInfo.brand, gDeviceInfo.model);
+        gif_config("gpu.vendor", gpu.vendor);
+        gif_config("gpu.renderer", gpu.renderer);
+        gif_config("gpu.version", gpu.version);
+    }
     return true;
 }
 
@@ -1924,18 +2047,9 @@ bool select_backup_and_restore(int index) {
 
     string work_dir = destination_dir + selected_backup.substr(0, selected_backup.find(".tar.gz"));
     
-    if (!restore_system_properties(work_dir)) {
-        cerr << "Failed to restore system properties" << endl;
-        return false;
-    }
-
-    if (!restore_pm_list_features(work_dir)) {
-        cerr << "Failed to restore pm list features" << endl;
-        return false;
-    }
-
-    //TODO: Call other restore functions as needed (e.g., restore_system_files)
-
+    restore_system_properties(work_dir);
+    restore_pm_list_features(work_dir);
+    restore_gpu_info(work_dir);
     if (!keepcache) delete_directory(work_dir);
     return true;
 }
@@ -2024,17 +2138,9 @@ bool select_backup_and_restore(const string &brand, const string &model) {
 
     string work_dir = destination_dir + selected_backup.substr(0, selected_backup.find(".tar.gz"));
 
-    if (!restore_system_properties(work_dir)) {
-        cerr << "Failed to restore system properties" << endl;
-        return false;
-    }
-
-    if (!restore_pm_list_features(work_dir)) {
-        cerr << "Failed to restore pm list features" << endl;
-        return false;
-    }
-
-    // TODO: Call other restore functions as needed (e.g., restore_system_files)
+    restore_system_properties(work_dir);
+    restore_pm_list_features(work_dir);
+    restore_gpu_info(work_dir);
 
     if (!keepcache) delete_directory(work_dir);
     return true;
@@ -2195,18 +2301,20 @@ int show_main() {
 }
 /////////////////////////////////////////////////////////////////////
 int encrypt_main() {
+    encrypt_set_dbg(dbg);
     if (gOpstions.mode == "encrypt") {
         encrypt_gzip_file(gOpstions.input, gOpstions.output, gOpstions.key);
-        std::cout << "文件加密成功: " << gOpstions.output << "\n";
+        std::cout << "File encrypted successfully: " << gOpstions.output << "\n";
     } else if (gOpstions.mode == "decrypt") {
         decrypt_gzip_file(gOpstions.input, gOpstions.output, gOpstions.key);
-        std::cout << "文件解密成功: " << gOpstions.input << "\n";
+        std::cout << "File decrypted successfully: " << gOpstions.input << "\n";
     } else {
-        std::cerr << "无效模式: " << gOpstions.mode << ". 使用 'encrypt' 或 'decrypt'.\n";
+        std::cerr << "Invalid mode: " << gOpstions.mode << ". Use 'encrypt' or 'decrypt'.\n";
         return 1;
     }
     return 0;
 }
+
 /////////////////////////////////////////////////////////////////////
 void print_help() {
     cout << "Usage: vpick <command> [options]\n";
