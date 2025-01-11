@@ -509,7 +509,7 @@ bool backup_gpu_info(const std::string &work_dir) {
     file << output;
     file.close();
 
-    std::cout << "save GPU info to " << file_path << std::endl;
+    if (dbg) std::cout << "save GPU info to " << file_path << std::endl;
     return true;
 }
 
@@ -1114,6 +1114,22 @@ std::string generate_random_string(int length) {
     return result;
 }
 
+string generate_new_oaid(const string &value) {
+    string new_oaid = value;
+    
+    for (size_t i = 0; i < new_oaid.length(); ++i) {
+        if (islower(new_oaid[i])) {
+            new_oaid[i] = random_lowercase();
+        } else if (isupper(new_oaid[i])) {
+            new_oaid[i] = random_uppercase();
+        } else if (isdigit(new_oaid[i])) {
+            new_oaid[i] = random_digit();
+        }
+    }
+
+    return new_oaid;
+}
+
 std::string generate_oaid_by_manufacturer(const std::string& manufacturer) {
     if (dbg) cout << "generate_imei(" << manufacturer << ")" << endl;
     std::string oaid;
@@ -1121,15 +1137,57 @@ std::string generate_oaid_by_manufacturer(const std::string& manufacturer) {
     std::transform(manufacturer_lowercase.begin(), manufacturer_lowercase.end(), manufacturer_lowercase.begin(), ::tolower);
 
     if (manufacturer_lowercase == "huawei") {
-        oaid = "HUA" + generate_random_string(12);
+        string oaid_sample = "fbcdfdc7-7bef-9ad6-feff-ba3d777e6b0e";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "honor") {
+        string oaid_sample = "f8d2a3c4-12e6-4a78-9b2d-abcdef123456";
+        oaid = generate_new_oaid(oaid_sample);
     } else if (manufacturer_lowercase == "xiaomi") {
-        oaid = "XM" + generate_random_string(24);
-    } else if (manufacturer_lowercase == "oppo") {
-        oaid = "OPP" + generate_random_string(10);
+        string oaid_sample = "fc0a41a6a680655f";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "blackshark") {
+        string oaid_sample = "cf22941f7c814433";
+        oaid = generate_new_oaid(oaid_sample);
     } else if (manufacturer_lowercase == "vivo") {
-        oaid = "VIV" + generate_random_string(10);
+        //string oaid_sample = "5a83151f76e45da3b73d06bfa1893270d274019e2db558d89a7c8f344f88cd06";
+        string oaid_sample = "d6d6ad3073f4a3500fe495eb445c2dbc3522f7e17717d19b5fc01a876c6721c2";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "oppo") {
+        string oaid_sample = "332D37A70BED43338D4864FCD1F08B9550e88790074327f4544802b8031fa895";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "realme") {
+        string oaid_sample = "2E6D2BE01C6B4BF4A1089901880F6236c03941023114c1957e6856b4e7c65398";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "meizu") {
+        string oaid_sample = "8f94bfa4c07dd618a46f5e7c57d2457e";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "samsung") {
+        string oaid_sample = "9f2b8837b90d87f73da0a1c9c7df4f6c3741a24c85a74c7088f48bc914420944";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "Google") {
+        string oaid_sample = "3f776c49-3479-4297-a1a3-aad4653118f6";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "zte") {
+        string oaid_sample = "e4aa8cff-225c-4320-8b62-6ad8b8fe0cc3";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "motorola") {
+        string oaid_sample = "18c90ffb-41f9-491c-b030-9fa75c01b114";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "sony") {
+        string oaid_sample = "9992c022-1264-46ac-8fb1-38a5dd782e9b";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "hmd global") {
+        string oaid_sample = "a9fe8f3b-61d3-404a-9b0d-cabee6cfa041";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "htc") {
+        string oaid_sample = "19035315-9800-4600-8276-5618c15d170";
+        oaid = generate_new_oaid(oaid_sample);
+    } else if (manufacturer_lowercase == "lge") {
+        string oaid_sample = "18b26f65-1380-473d-a463-899aa523479f";
+        oaid = generate_new_oaid(oaid_sample);
     } else {
-        oaid = "UNK" + generate_random_string(12);
+        string oaid_sample = "f8d2a3c4-12e6-4a78-9b2d-abcdef123456";
+        oaid = generate_new_oaid(oaid_sample);
     }
 
     return oaid;
