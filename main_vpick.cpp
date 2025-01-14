@@ -845,6 +845,10 @@ bool restore_property(const string &key, const string &value) {
         gDeviceInfo.imei2 = value;
         return true;
     }
+    // if (key == "gsm.network.type") {
+    //     string newValue = (random() %100 > 40)?"LTE":"NR";
+    //     return gif_setprop(final_key, newValue);
+    // }
 
     return gif_setprop(final_key, value);
 }
@@ -960,17 +964,17 @@ bool restore_system_properties(const string &work_dir) {
         "ro.boot.baseband"
         "ro.bootloader",
         //gsm
-        "gsm.current.phone-type",
-        "gsm.network.type",
-        "gsm.operator.alpha",
-        "gsm.operator.iso-country",
-        "gsm.operator.isroaming",
-        "gsm.operator.numeric",
-        "gsm.operator.orig.alpha",
-        "gsm.sim.operator.alpha",
-        "gsm.sim.operator.iso-country",
-        "gsm.sim.operator.numeric",
-        "gsm.sim.operator.orig.alpha",
+        // "gsm.current.phone-type",
+        // "gsm.network.type",
+        // "gsm.operator.alpha",
+        // "gsm.operator.iso-country",
+        // "gsm.operator.isroaming",
+        // "gsm.operator.numeric",
+        // "gsm.operator.orig.alpha",
+        // "gsm.sim.operator.alpha",
+        // "gsm.sim.operator.iso-country",
+        // "gsm.sim.operator.numeric",
+        // "gsm.sim.operator.orig.alpha",
         "gsm.version.baseband",
         "gsm.version.ril-impl",
         //ril
@@ -1655,14 +1659,20 @@ OperatorInfo get_operator_info(const std::string& operator_code) {
     }
 }
 
-int generate_network_type() {
-    srand(time(NULL));
+std::pair<int, std::string> generate_network_type() {
+    srand(static_cast<unsigned int>(time(NULL)));
 
-    std::vector<int> network_types = {3, 13, 20};  // UMTS, LTE, 5G (NR),
+    // 定义网络类型及其对应的名称
+    std::vector<std::pair<int, std::string>> network_types = {
+        // {3, "UMTS"},    // 3G
+        {13, "LTE"},    // 4G
+        {20, "NR"}      // 5G
+    };
 
-    int network_type = network_types[rand() % network_types.size()];
+    // 随机选择一个网络类型
+    auto selected_network = network_types[rand() % network_types.size()];
 
-    return network_type;
+    return selected_network;
 }
 
 bool generate_sim_info() {
@@ -1680,7 +1690,7 @@ bool generate_sim_info() {
     std::string meid = generate_random_meid(operator_codes);
     std::string iccid = generate_iccid(operator_codes);
     std::string imsi = generate_imsi(operator_codes);
-    int network_type = generate_network_type();
+    auto network = generate_network_type();
 
     gif_config("sim.shortname", operator_info.shortname);
     gif_config("sim.deviceid", imei);
@@ -1696,7 +1706,7 @@ bool generate_sim_info() {
     gif_config("sim.sim_iso", operator_info.country_iso);
     gif_config("sim.hasicccard", "1");
     gif_config("sim.state", "5");
-    gif_config("sim.datatype", std::to_string(network_type));
+    gif_config("sim.datatype", std::to_string(network.first));
     gif_config("sim.sn", iccid);
     gif_config("sim.phonenumber", msisdn);
     gif_config("sim.sid", "100");
@@ -1706,8 +1716,21 @@ bool generate_sim_info() {
     gif_config("sim.spn", operator_info.spn);
     gif_config("sim.msisdn", msisdn);
     gif_config("sim.esn", esn);
-    gif_config("sim.phonetype", std::to_string(network_type));
+    gif_config("sim.phonetype", "1");
     gif_config("sim.roaming", "0");
+
+    gif_setprop("gsm.current.phone-type", "1");
+    gif_setprop("gsm.network.type", network.second);
+    gif_setprop("gsm.operator.alpha", operator_info.name);
+    gif_setprop("gsm.operator.iso-country", operator_info.country_iso);
+    gif_setprop("gsm.operator.isroaming", "0");
+    gif_setprop("gsm.operator.numeric", operator_info.code);  
+    gif_setprop("gsm.operator.orig.alpha", operator_info.name);
+    gif_setprop("gsm.sim.operator.alpha", operator_info.name);
+    gif_setprop("gsm.sim.operator.iso-country", operator_info.country_iso);
+    gif_setprop("gsm.sim.operator.numeric", operator_info.code);
+    gif_setprop("gsm.sim.operator.orig.alpha", operator_info.code);
+
     return true;
 }
 
