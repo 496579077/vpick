@@ -1,5 +1,73 @@
 #!/bin/sh
 
-mkdir -p /data/local/tmp/plugin
-tar -zxvf vpick.tgz -C /data/local/tmp/plugin/
-chmod 644 /data/local/tmp/plugin/etc/init/init.vpkd.rc
+stop_vpkd() {
+    stop vpkd
+    sleep 1
+    if pgrep -f "vpkd" > /dev/null; then
+        echo "Stopping vpkd..."
+        pkill -f "vpkd"
+        sleep 1
+        if pgrep -f "vpkd" > /dev/null; then
+            echo "Failed to stop vpkd, forcing termination..."
+            pkill -9 -f "vpkd"
+        fi
+        echo "vpkd stopped."
+    else
+        echo "vpkd is not running."
+    fi
+}
+
+remove_old_version() {
+    echo "Removing old version..."
+    [ -f /data/local/tmp/plugin/bin/vpick ] && echo "version:$(/data/local/tmp/plugin/bin/vpick -v)"
+    rm -f /data/local/tmp/plugin/bin/vpkd
+    rm -f /data/local/tmp/plugin/bin/vpick
+    rm -f /data/local/tmp/plugin/etc/init/init.vpkd.rc
+    echo "Old version removed"
+}
+
+release_new_version() {
+    echo "Releasing new version..."
+    if [ -f vpick.tgz ]; then
+        tar -zxvf vpick.tgz -C /data/local/tmp/plugin/ || { echo "Extraction failed"; exit 1; }
+        chmod 755 /data/local/tmp/plugin/etc/init/init.vpkd.rc
+        echo "New version released"
+    else
+        echo "vpick.tgz not found"
+        exit 1
+    fi
+}
+
+start_vpkd() {
+    echo "Starting vpkd..."
+    start vpkd
+    sleep 1
+    if pgrep -f "vpkd" > /dev/null; then
+        echo "vpkd started successfully"
+    else
+        nohup /data/local/tmp/plugin/bin/vpkd > /dev/null 2>&1 &
+        sleep 2
+        if pgrep -f "vpkd" > /dev/null; then
+            echo "vpkd started successfully"
+        else
+            echo "Failed to start vpkd"
+            exit 1
+        fi
+    fi
+}
+
+print_version() {
+    echo ""
+    echo "version:$(vpick -v)"
+    echo ""
+    echo "version:$(vpick -h)"
+    echo ""
+}
+
+stop_vpkd
+remove_old_version
+release_new_version
+start_vpkd
+print_version
+
+
