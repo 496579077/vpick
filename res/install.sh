@@ -56,11 +56,24 @@ start_vpkd() {
     fi
 }
 
+maybe_trigger_vpck() {
+    local autotrigger_disabled=$(getprop persist.vpk.autotrigger.disabled 0)
+    echo "persist.vpk.autotrigger.disabled=$autotrigger_disabled"
+    if [ "$autotrigger_disabled" == 0 ]; then
+        ./auto_trigger.sh
+        local status=$?
+        if [ $status -ne 0 ]; then
+            echo "auto_trigger.sh failed with exit code $status"
+            return $status
+        fi
+    fi    
+}
+
 print_version() {
     echo ""
     echo "version:$(vpick -v)"
     echo ""
-    echo "version:$(vpick -h)"
+    echo "$(vpick -h)"
     echo ""
 }
 
@@ -68,6 +81,7 @@ stop_vpkd
 remove_old_version
 release_new_version
 start_vpkd
+maybe_trigger_vpck
 print_version
 
 

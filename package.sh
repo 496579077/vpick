@@ -25,8 +25,10 @@ mkdir $BUILD_DIR/$NAME-$VERSION
 mv $CACHE_DIR/vpick.tgz $BUILD_DIR/$NAME-$VERSION
 cp res/install.sh $BUILD_DIR/$NAME-$VERSION
 cp res/uninstall.sh $BUILD_DIR/$NAME-$VERSION
+cp res/auto_trigger.sh $BUILD_DIR/$NAME-$VERSION
 chmod 777 $BUILD_DIR/$NAME-$VERSION/install.sh
 chmod 777 $BUILD_DIR/$NAME-$VERSION/uninstall.sh
+chmod 777 $BUILD_DIR/$NAME-$VERSION/auto_trigger.sh
 
 tar -zcvf $BUILD_DIR/$NAME-$VERSION.tgz -C $BUILD_DIR $NAME-$VERSION
 
