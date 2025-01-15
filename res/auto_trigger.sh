@@ -1,20 +1,5 @@
 #!/bin/sh
 
-clear_device_properties() {
-    # Step 1: Read the system properties into variables
-    local brand=$(getprop persist.product.v-brand)
-    local model=$(getprop persist.product.v-model)
-
-    # Step 2: Set the properties to empty
-    setprop persist.product.v-brand ""
-    setprop persist.product.v-model ""
-
-    # Optional: Log the cleared values for debugging
-    echo "Cleared properties:"
-    echo "persist.product.v-brand was: $brand"
-    echo "persist.product.v-model was: $model"
-}
-
 never_trigger_before=false
 check_if_trigger_before() {
     local manufacturer=$(getprop ro.product.manufacturer)
@@ -29,7 +14,6 @@ check_if_trigger_before() {
     [ "$board" = "rk30sdk" ] && never_trigger_before=true
     [ "$product" = "rk3588_docker" ] && never_trigger_before=true
 }
-
 
 maybe_trigger_vpck() {
     if [ "$never_trigger_before" = "true" ]; then

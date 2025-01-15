@@ -2073,6 +2073,75 @@ bool generate_misc_info() {
 }
 
 
+// Function to get a property value (with newline and carriage return stripped)
+std::string get_property(const std::string &property) {
+    std::string value = execute_command("getprop " + property);
+
+    // Remove any trailing newline or carriage return characters
+    value.erase(std::remove(value.begin(), value.end(), '\n'), value.end());
+    value.erase(std::remove(value.begin(), value.end(), '\r'), value.end());
+
+    return value;
+}
+
+// Function to set a property value
+// void set_property(const std::string &property, const std::string &value) {
+//     execute_command("setprop " + property + " \"" + value + "\"");
+// }
+
+// Function to clear a single property if it has a value
+void clear_property_if_needed(const std::string &property) {
+    std::string value = get_property(property);
+    if (!value.empty()) {
+        execute_command("setprop " + property + " \"\"");
+        if (dbg) std::cout << "Cleared property: " << property << ", was: " << value << endl;
+    }
+}
+
+// Function to clear a list of properties
+void clear_conflict_properties() {
+    // Check if the feature is disabled via the toggle property
+    std::string disabled = get_property("persist.vpk.clearconflictprop.disabled");
+
+    if (disabled == "1") {
+        std::cout << "persist.vpk.clearconflictprop.disabled=1" << endl;
+        return;
+    }
+    // List of properties to check and clear
+    std::vector<std::string> properties = {
+        // "persist.build.v-id",
+        "persist.build.display.v-id",
+        "persist.product.v-name",
+        "persist.product.v-board",
+        "persist.product.v-manufacturer",
+        "persist.product.v-brand",
+        "persist.product.v-model",
+        // "persist.v-bootloader",
+        // "persist.version.v-baseband",
+        // "persist.v-hardware",
+        // "persist.v-serialno",
+        // "persist.build.v-type",
+        // "persist.build.v-tags",
+        // // "persist.build.v-fingerprint",
+        // "persist.build.v-user",
+        // "persist.build.v-host",
+        // "persist.boot.v-bootloader",
+        // "persist.boot.v-baseband",
+        // "persist.operator.v-numeric",
+        // "persist.network.v-type",
+        // "persist.build.version.v-incremental",
+        // "persist.build.version.v-release",
+        // "persist.build.version.v-base_os",
+        // "persist.build.version.v-security_patch",
+        // "persist.build.version.v-sdk",
+        // "persist.build.version.v-codename",
+    };
+
+    for (const auto &property : properties) {
+        clear_property_if_needed(property);
+    }
+}
+
 bool select_backup_and_restore(int index) {
     DIR *dir = opendir(WORK_DIR);
     if (dir == nullptr) {
@@ -2129,11 +2198,13 @@ bool select_backup_and_restore(int index) {
     string work_dir = destination_dir + selected_backup.substr(0, selected_backup.find(".tar.gz"));
     
     restore_system_properties(work_dir);
+    clear_conflict_properties();
     restore_pm_list_features(work_dir);
     restore_gpu_info(work_dir);
     if (!keepcache) delete_directory(work_dir);
     return true;
 }
+
 
 bool select_backup_and_restore(const string &brand, const string &model) {
     DIR *dir = opendir(WORK_DIR);
@@ -2220,6 +2291,7 @@ bool select_backup_and_restore(const string &brand, const string &model) {
     string work_dir = destination_dir + selected_backup.substr(0, selected_backup.find(".tar.gz"));
 
     restore_system_properties(work_dir);
+    clear_conflict_properties();
     restore_pm_list_features(work_dir);
     restore_gpu_info(work_dir);
 
