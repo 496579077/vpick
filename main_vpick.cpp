@@ -2380,6 +2380,24 @@ int show_main() {
     if (!keepcache) delete_directory(work_dir);
     return ret;
 }
+
+/////////////////////////////////////////////////////////////////////
+int dump_main() {
+    string manufacturer = execute_command("getprop ro.product.manufacturer");
+    string brand = execute_command("getprop ro.product.brand");
+    string model = execute_command("getprop ro.product.model");
+    string version = execute_command("getprop ro.build.version.release");
+    string build_id = execute_command("getprop ro.build.id");
+    cout << "********************************************************************************" <<  endl;
+    cout << "manufacturer: " << manufacturer;
+    cout << "brand       : " << brand;
+    cout << "model       : " << model;
+    cout << "version     : Android " << version;
+    cout << "build_id    : " << build_id;
+    cout << "********************************************************************************" <<  endl;
+    return 0;
+}
+
 /////////////////////////////////////////////////////////////////////
 int encrypt_main() {
     encrypt_set_dbg(dbg);
@@ -2403,6 +2421,7 @@ void print_help() {
     cout << "  -v, --version         Show version information." << endl;
     cout << "  -b, backup            Create a backup." << endl;
     cout << "  -l, list              List available backups." << endl;
+    cout << "  dump                  Dump current device info." << endl;
     if (dbg) cout << "  -r, restore           Restore from a backup." << endl;
     if (dbg) cout << "  -e, encrypt           Encrypt a file." << endl;
     if (dbg) cout << "  -d, decrypt           Decrypt a file." << endl;
@@ -2428,6 +2447,7 @@ void print_help() {
     cout << "  vpick -v" << endl;
     cout << "  vpick backup" << endl;
     cout << "  vpick list" << endl;
+    cout << "  vpick dump" << endl;
     if (dbg) cout << "  vpick restore --index 1 --brand Xiaomi --model Redmi" << endl;
     if (dbg) cout << "  vpick -r --dbg" << endl;
     if (dbg) cout << "  vpick encrypt -i file.txt -o file.txt.enc --key mykey" << endl;
@@ -2539,6 +2559,10 @@ void handle_command(const string& cmd, int argc, char* argv[]) {
         int i = 3;
         process_options(argc, argv, i);
         show_main();
+    }  else if (cmd == "dump") {
+        int i = 2;
+        process_options(argc, argv, i);
+        dump_main();
     } else if (cmd == "getprop") {
         if (argc < 3) {
             print_help();

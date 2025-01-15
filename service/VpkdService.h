@@ -40,6 +40,7 @@ class OnekeyNewDeviceThread : public android::Thread {
         std::mutex mStateMutex;
         std::string mBrand;
         std::string mModel;
+        bool mTriggerForce;
         bool mBrandChanged;
         bool mModelChanged;
         bool mEnabled;

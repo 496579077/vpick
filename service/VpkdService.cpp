@@ -172,6 +172,7 @@ std::string execute_command(const std::string &command, bool remove_spaces = fal
 VpkdService::VpkdService::OnekeyNewDeviceThread::OnekeyNewDeviceThread()
             :mBrand("none"),
                 mModel("none"),
+                mTriggerForce(false),
                 mBrandChanged(false),
                 mModelChanged(false),
                 mEnabled(true),
@@ -209,7 +210,7 @@ void VpkdService::VpkdService::OnekeyNewDeviceThread::maybeUpdateDeviceInfo() {
     }
 
     mVpickBusy = true;
-    execute_command("setprop sys.vpick.busy 1");
+    // execute_command("setprop sys.vpk.busy 1");
 
     // Fetch new values only once
     std::string newBrand = execute_command("getprop ro.product.brand", true);
@@ -241,7 +242,7 @@ void VpkdService::VpkdService::OnekeyNewDeviceThread::maybeUpdateDeviceInfo() {
     ALOGI("finished: %s", ret.c_str());
     // Reset states
 
-    execute_command("setprop sys.vpick.busy 0");
+    // execute_command("setprop sys.vpk.busy 0");
     mVpickBusy = false;
 }
 
@@ -258,18 +259,18 @@ bool VpkdService::VpkdService::OnekeyNewDeviceThread::threadLoop() {
             continue;
         }
 
-        if (mBrandChanged == false && mModelChanged == false) {
+        if (mTriggerForce == false && mBrandChanged == false && mModelChanged == false) {
             continue;
         }
 
-        if ((mBrandChanged == false || mModelChanged == false) && (delayProcess == false)) {
+        if (mTriggerForce == false && (mBrandChanged == false || mModelChanged == false) && (delayProcess == false)) {
             //品牌和型号中只有一个变化，延时处理
             ALOGE("delay process[mBrandChanged:%d,mModelChanged%d]", mBrandChanged, mModelChanged);
             delayProcess = true;
             continue;
         }
         delayProcess = false;
-
+        mTriggerForce = false;
         maybeUpdateDeviceInfo();
     }
     return false;
